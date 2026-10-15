@@ -30,6 +30,7 @@
 ### 候选版本与真实模组
 
 - [candidate-validation.md](./candidate-validation.md) — 干净源码构建完整候选包、真实物品交互验收与本地固化
+- [candidate-validation-report.md](./candidate-validation-report.md) — 已固化源码提交、54 文件交付、82 项回归与真实模组证据
 
 ### P5 Desktop 退役
 

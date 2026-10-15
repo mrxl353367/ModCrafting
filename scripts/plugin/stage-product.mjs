@@ -41,7 +41,9 @@ await copyFile(path.join(root, 'docs/candidate-validation.md'), path.join(direct
 const exampleFiles = ['README.md', 'test-spec.json', 'src/main/java/com/modcrafting/example/IronTicketMod.java', 'src/main/resources/fabric.mod.json', 'src/main/resources/assets/iron_ticket/lang/zh_cn.json', 'src/main/resources/assets/iron_ticket/lang/en_us.json', 'src/main/resources/assets/iron_ticket/models/item/ticket.json', 'src/main/resources/assets/iron_ticket/items/ticket.json']
 for (const file of exampleFiles) {
   const source = path.join(root, 'examples/iron-ticket', file), target = path.join(directory, 'examples/iron-ticket', file)
-  await ordinary(source); await mkdir(path.dirname(target), { recursive: true }); await copyFile(source, target)
+  await ordinary(source); await mkdir(path.dirname(target), { recursive: true })
+  if (file === 'README.md') await writeFile(target, (await readFile(source, 'utf8')).replaceAll('../../docs/candidate-validation.md', '../../CANDIDATE.md'), { flag: 'wx' })
+  else await copyFile(source, target)
 }
 await ordinary(path.join(root, 'temp/migration-artifacts/migrate-desktop.mjs'))
 await copyFile(path.join(root, 'temp/migration-artifacts/migrate-desktop.mjs'), path.join(directory, 'migrate-desktop.mjs'))
