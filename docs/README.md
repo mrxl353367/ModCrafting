@@ -5,17 +5,42 @@
 > 项目根目录的 [README.md](../README.md) 是面向用户的快速入门。
 > [AGENTS.md](../AGENTS.md) 与 [CLAUDE.md](../CLAUDE.md) 是 AI Agent 工作时的精简指引（≤150 行），仅包含项目摘要、关键约定、文档索引。
 
+**当前开发入口**：[转型路线与阶段进度](./transformation-roadmap.md)。P2/P3 已本地验收；当前 P4 [跨 Agent 分发](./host-distribution.md) 与 [实施报告](./phase-04-distribution-report.md)：Codex/Claude 调用通过，Qoder 调用待已登录环境。P5 未开始。浏览器用法见 [指南](./browser-view.md)。下列旧 phase 文档保留历史任务与验收依据，不单独决定当前优先级。
+
 ## 文档分类
 
 ### 项目架构
-- [architecture.md](./architecture.md) — 三进程架构、模块清单、目录结构、维护注意事项
+- [agent-integration-boundaries.md](./agent-integration-boundaries.md) — Core/MCP、可选展示、Desktop 兼容与退役边界
+- [core-contracts.md](./core-contracts.md) — Core runtime、资源/任务/实例/报告及 P3 最小展示契约
+- [architecture.md](./architecture.md) — 现有实现与旧 Desktop 三进程架构参考
 
 ### 开发流程
+- [transformation-roadmap.md](./transformation-roadmap.md) — 当前统一阶段表、已有成果映射、P2 清单与后续退出条件
+- [phase-02-core-report.md](./phase-02-core-report.md) — 当前 P2 实施：范围整理、Core 契约、可移植 Bench 与独立验收证据
+- [fabric-bench.md](./fabric-bench.md) — fixture/live 命令、仓库外交付包、工具链输入、专用世界与报告
+- [product-handoff.md](./product-handoff.md) — P2 完整本地交付、Observer V2 兼容资源、首次使用与 P3 接口交接
 - [workflow.md](./workflow.md) — Vibecoding 工作流、三模式路由、Plan → Execute 双阶段
 - [commands.md](./commands.md) — 完整命令清单、脚本目录结构、发布流程
+- [phase-00-git-report.md](./phase-00-git-report.md) — P0 Git 安全隔离的实际记录
+- [phase-00-pnpm-report.md](./phase-00-pnpm-report.md) — P0.5 pnpm 迁移验证、打包启动修复与剩余既存失败
+- [phase-01-implementation-report.md](./phase-01-implementation-report.md) — P1 D1–D8 本地交付、实际验证与未验证边界
+- [phase-02-acceptance-bench.md](./phase-02-acceptance-bench.md) — 已被统一路线替代的原 P2 范围，保留历史依据
+- [phase-02-implementation-report.md](./phase-02-implementation-report.md) — 原 P2 实施与实机证据，完成项按统一路线重新归类
+
+### 候选版本与真实模组
+
+- [candidate-validation.md](./candidate-validation.md) — 干净源码构建完整候选包、真实物品交互验收与本地固化
+
+### P5 Desktop 退役
+
+- [desktop-retirement.md](./desktop-retirement.md) — 功能替代、工程路径迁移、旧数据保留、回退和默认入口切换
+- [phase-05-retirement-report.md](./phase-05-retirement-report.md) — P5 实施与验证结果
+- [legacy-desktop.md](./legacy-desktop.md) — 原 README 的历史 Desktop 说明
 
 ### Codex 插件
 
+- [phase-01-live-acceptance-report.md](./phase-01-live-acceptance-report.md) — 真实 Codex 后端加载、系统 JDK 构建、专用世界三态验收及入口修复
+- [插件 README](../plugins/modcrafting-fabric/README.md) — 独立 Stage、实测 Codex CLI 安装、协议检查与能力限制
 - [architecture.md](./architecture.md) - `modcrafting-fabric` 插件与共享核心架构
 - [commands.md](./commands.md) - 插件构建、隔离测试、校验和本地 marketplace 使用方式
 

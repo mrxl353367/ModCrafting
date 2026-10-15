@@ -1,5 +1,7 @@
 runtime/
 resources/
+!examples/iron-ticket/src/main/resources/
+!examples/iron-ticket/src/main/resources/**
 # resources/gradle-9.5.0-bin.zip
 # resources/_gradle_extract/
 # resources/_jdk_extract/

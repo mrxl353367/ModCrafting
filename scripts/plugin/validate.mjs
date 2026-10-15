@@ -1,42 +1,56 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
-import { resolve } from 'node:path'
+import { existsSync, readdirSync, readFileSync, lstatSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-const pluginRoot = resolve('plugins/modcrafting-fabric')
-const fail = (message) => {
-  console.error(`Plugin validation failed: ${message}`)
-  process.exit(1)
+export function validatePlugin(pluginRoot, staged = false) {
+  const manifest = JSON.parse(readFileSync(path.join(pluginRoot, '.codex-plugin/plugin.json'), 'utf8'))
+  const config = JSON.parse(readFileSync(path.join(pluginRoot, '.mcp.json'), 'utf8'))
+  const required = ['.codex-plugin/plugin.json', '.mcp.json', 'dist/mcp-server.js', 'assets/modcrafting.png', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.txt']
+  for (const key of ['name', 'version', 'description', 'license']) {
+    if (typeof manifest[key] !== 'string' || !manifest[key].trim()) throw new Error(`Invalid manifest.${key}`)
+  }
+  if (manifest.name !== 'modcrafting-fabric' || manifest.license !== 'GPL-3.0' || !manifest.author?.name) throw new Error('Invalid plugin identity/license/author')
+  if (manifest.skills !== './skills/' || manifest.mcpServers !== './.mcp.json') throw new Error('Invalid manifest paths')
+  for (const icon of [manifest.interface?.composerIcon, manifest.interface?.logo]) {
+    if (icon !== './assets/modcrafting.png') throw new Error('Invalid manifest icon')
+  }
+  const server = config.mcpServers?.['modcrafting-fabric']
+  if (Object.keys(server?.env || {}).length) throw new Error('Packaged MCP config must not contain local environment overrides')
+  if (server?.command !== 'node' || server.cwd !== '.' || JSON.stringify(server.args) !== JSON.stringify(['./dist/mcp-server.js'])) throw new Error('MCP entry must refer to the packaged JS through plugin-relative cwd')
+  for (const entry of readdirSync(path.join(pluginRoot, 'skills'), { withFileTypes: true })) {
+    if (!entry.isDirectory()) throw new Error('Unexpected skill entry')
+    const file = `skills/${entry.name}/SKILL.md`
+    if (!readFileSync(path.join(pluginRoot, file), 'utf8').startsWith('---')) throw new Error(`Invalid skill: ${file}`)
+    required.push(file)
+  }
+  for (const file of required) if (!existsSync(path.join(pluginRoot, file)) || !lstatSync(path.join(pluginRoot, file)).isFile()) throw new Error(`Missing regular file: ${file}`)
+  const personalPath = /[A-Za-z]:[\\/](?:Users|project_file)\b|\/home\/[^/]+\//
+  const bundle = readFileSync(path.join(pluginRoot, 'dist/mcp-server.js'), 'utf8')
+  if (!bundle.includes(JSON.stringify(manifest.version))) throw new Error('Bundle version differs from manifest')
+  if (personalPath.test(bundle)) throw new Error('Bundle contains a personal absolute path')
+  if (staged) validateStageContents(pluginRoot, required)
+  return { manifest, config }
 }
 
-for (const relativePath of ['.codex-plugin/plugin.json', '.mcp.json', 'dist/mcp-server.js']) {
-  if (!existsSync(resolve(pluginRoot, relativePath))) fail(`missing ${relativePath}`)
+export function validateStageContents(pluginRoot, required) {
+    const personalPath = /[A-Za-z]:[\\/](?:Users|project_file)\b|\/home\/[^/]+\//
+    const walk = (dir, prefix = '') => {
+      for (const entry of readdirSync(dir)) {
+        const relative = `${prefix}${entry}`
+        const stat = lstatSync(path.join(dir, entry))
+        if (stat.isSymbolicLink()) throw new Error(`Stage contains a link: ${relative}`)
+        if (stat.isDirectory()) {
+          if (!required.some((file) => file.startsWith(`${relative}/`))) throw new Error(`Stage contains unexpected directory: ${relative}`)
+          walk(path.join(dir, entry), `${relative}/`)
+        } else if (!required.includes(relative)) throw new Error(`Stage contains unexpected file: ${relative}`)
+        else if (!relative.endsWith('.png') && personalPath.test(readFileSync(path.join(dir, entry), 'utf8'))) throw new Error(`Stage contains a personal absolute path: ${relative}`)
+      }
+    }
+    walk(pluginRoot)
 }
 
-let manifest
-let mcpConfig
-try {
-  manifest = JSON.parse(readFileSync(resolve(pluginRoot, '.codex-plugin/plugin.json'), 'utf8'))
-  mcpConfig = JSON.parse(readFileSync(resolve(pluginRoot, '.mcp.json'), 'utf8'))
-} catch (error) {
-  fail(`invalid JSON: ${error instanceof Error ? error.message : String(error)}`)
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  const target = path.resolve(process.argv[2] || 'plugins/modcrafting-fabric')
+  validatePlugin(target, process.argv.includes('--stage'))
+  console.log('Plugin validation passed: modcrafting-fabric')
 }
-
-for (const field of ['name', 'version', 'description', 'license']) {
-  if (typeof manifest[field] !== 'string' || !manifest[field].trim()) fail(`manifest.${field} must be a non-empty string`)
-}
-if (typeof manifest.author !== 'object' || typeof manifest.author?.name !== 'string' || !manifest.author.name.trim()) {
-  fail('manifest.author.name must be a non-empty string')
-}
-if (manifest.name !== 'modcrafting-fabric') fail('manifest.name must be modcrafting-fabric')
-if (manifest.license !== 'GPL-3.0') fail('manifest.license must be GPL-3.0')
-if (manifest.skills !== './skills/') fail('manifest must reference ./skills/')
-if (!manifest.mcpServers || typeof manifest.mcpServers !== 'string') fail('manifest must reference .mcp.json')
-
-const skillsRoot = resolve(pluginRoot, 'skills')
-const skillDirectories = readdirSync(skillsRoot).filter((entry) => statSync(resolve(skillsRoot, entry)).isDirectory())
-for (const directory of skillDirectories) {
-  const skillFile = resolve(skillsRoot, directory, 'SKILL.md')
-  if (!existsSync(skillFile) || !readFileSync(skillFile, 'utf8').startsWith('---')) fail(`invalid skill ${directory}`)
-}
-if (!mcpConfig.mcpServers?.['modcrafting-fabric']) fail('MCP configuration must define modcrafting-fabric')
-
-console.log('Plugin validation passed: modcrafting-fabric')

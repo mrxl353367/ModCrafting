@@ -17,8 +17,8 @@ function run(cmd, args, label) {
   if (result.status !== 0) process.exit(result.status ?? 1)
 }
 
-function npm(script, label) {
-  run('npm', ['run', script], label)
+function pnpm(script, label) {
+  run('pnpm', ['run', script], label)
 }
 
 function nodeScript(rel, label) {
@@ -46,7 +46,7 @@ function tryKnowledgeDownload() {
   })
   if (result.status !== 0) {
     console.warn('[prebuild][warn] 知识库下载失败，agent 将在运行时返回"服务不可用"提示。')
-    console.warn('[prebuild][warn] 可稍后手动运行 `npm run knowledge:download` 重新下载。')
+    console.warn('[prebuild][warn] 可稍后手动运行 `pnpm run knowledge:download` 重新下载。')
   }
 }
 
@@ -59,7 +59,7 @@ if (target === 'portable') {
 nodeScript('scripts/assets/generate-icon-ico.mjs', 'generate icons')
 nodeScript('scripts/assets/generate-installer-assets.mjs', 'generate installer assets')
 if (isPythonAvailable()) {
-  npm('assets:prepare', 'prepare renderer assets')
+  pnpm('assets:prepare', 'prepare renderer assets')
 } else {
   console.warn('[prebuild][warn] python 不可用，跳过 assets:prepare。')
   console.warn('[prebuild][warn] 若 MC 客户端资源未生成，渲染器可能缺失贴图；资源已存在时可忽略。')

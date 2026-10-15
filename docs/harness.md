@@ -1,5 +1,7 @@
 # Harness 系统
 
+本文件记录旧 Desktop Harness，作为兼容与迁移参考。当前任务以 [转型路线](./transformation-roadmap.md) 为准；Agent、Controller、WorkflowEngine 仅做必要缺陷修复，新业务与验收流向 Core/MCP。详见 [集成边界](./agent-integration-boundaries.md)。
+
 
 ## Game-test INCONCLUSIVE recovery (architecture)
 

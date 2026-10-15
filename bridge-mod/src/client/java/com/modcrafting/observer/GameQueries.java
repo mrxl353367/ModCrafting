@@ -179,7 +179,7 @@ public final class GameQueries {
      */
     private static Map<String, Object> containerOf(Screen screen) {
         Map<String, Object> out = new LinkedHashMap<>();
-        if (!(screen instanceof net.minecraft.client.gui.screen.ingame.AbstractContainerScreen<?> containerScreen)) {
+        if (!(screen instanceof net.minecraft.client.gui.screen.ingame.HandledScreen<?> containerScreen)) {
             out.put("slots", List.of());
             out.put("handlerType", null);
             out.put("syncId", null);
@@ -187,8 +187,7 @@ public final class GameQueries {
             return out;
         }
         try {
-            net.minecraft.client.gui.screen.ingame.AbstractContainerScreen<?> abs = containerScreen;
-            net.minecraft.screenhansync.PlayerScreenHandlerInterface handler = abs.getScreenHandler();
+            net.minecraft.screen.ScreenHandler handler = containerScreen.getScreenHandler();
             if (handler == null) {
                 out.put("slots", List.of());
                 out.put("handlerType", null);
@@ -197,14 +196,14 @@ public final class GameQueries {
                 return out;
             }
             out.put("handlerType", handler.getType().toString());
-            out.put("syncId", handler.getSyncId());
+            out.put("syncId", handler.syncId);
             // Cursor stack
             net.minecraft.item.ItemStack cursor = handler.getCursorStack();
             out.put("cursorStack", cursor.isEmpty() ? null : stackSummary(cursor));
             // Slot list
             List<Map<String, Object>> slots = new ArrayList<>();
             for (int i = 0; i < handler.slots.size(); i++) {
-                net.minecraft.screenhansync.Slot s = handler.slots.get(i);
+                net.minecraft.screen.slot.Slot s = handler.slots.get(i);
                 net.minecraft.item.ItemStack stack = s.getStack();
                 Map<String, Object> row = new LinkedHashMap<>();
                 row.put("index", i);
@@ -228,7 +227,8 @@ public final class GameQueries {
         StringBuilder sb = new StringBuilder();
         sb.append(Registries.ITEM.getId(stack.getItem()).toString());
         if (stack.getCount() != 1) sb.append(" x").append(stack.getCount());
-        if (stack.hasNbt()) sb.append(" nbt:").append(stack.getNbt().toString());
+        var customData = stack.get(net.minecraft.component.DataComponentTypes.CUSTOM_DATA);
+        if (customData != null && !customData.isEmpty()) sb.append(" nbt:").append(customData.copyNbt().toString());
         if (stack.getDamage() != 0) sb.append(" d:").append(stack.getDamage());
         return sb.toString();
     }

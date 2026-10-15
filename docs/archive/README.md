@@ -1,5 +1,17 @@
 # 归档索引
 
+- [2026-10-15] [Desktop 默认入口退役与工程路径迁移](./2026-10-15-desktop-retirement.md) — 独立迁移/读回、默认 Core/MCP 入口与旧自动发布退出；80/80 回归、真实 Gradle 构建、45 文件交付。兼容源码/数据与 Qoder 调用项保留。触发：Core/构建/发布调整自动归档。
+
+- [2026-10-14] [转型阶段重规划](./2026-10-14-transformation-replan.md) — P2/P3 已本地验收，P4 分发开发完成；73/73 回归、Codex/Claude 原生调用与浏览器备用、三宿主禁用保留数据；Qoder 已连接 19 工具，调用待登录环境，P5 未开始。触发：工作主线、核心/构建与展示/分发模块自动归档。
+
+- [2026-10-14] [P2 统一验收摘要与 Fabric-Bench MVP](./2026-10-14-acceptance-fabric-bench.md) — 离线 21/21、实机 10/10 预期匹配与基线对照；历史 Desktop 改动按新路线单列审阅。触发：Core/CI 变动自动归档。
+
+- [2026-10-13] [Codex 宿主与真实 Fabric/游戏验收](./2026-10-13-codex-live-mcp-validation.md) — 相对 cwd 修复宿主入口；真实构建及 PASS/FAIL/CLEANUP_FAILED 三条游戏路径通过。触发：集成缺陷/配置修改自动归档。
+
+- [2026-10-13] [P1 独立 MCP 底座与可信验收](./2026-10-13-mcp-foundation-p1.md) — 白名单 Stage、SDK 协议烟测、无伪 PASS 与 finally 清理、独立插件 CI；39 项定向回归通过，真实游戏未验证。触发：Core/构建修改自动归档。
+
+- [2026-10-13] [pnpm Worktree 迁移与基线隔离](./2026-10-13-pnpm-worktree-baseline.md) — Store 硬链接、独立原生产物、npm 基线对照及打包启动/依赖版本修复；保留 CI 既存失败。触发：构建流程修改自动归档。
+
 - [2026-10-05] [上下文窗口归因可视化](./2026-10-05-context-attribution-visualization.md) — 状态栏占比条改为分类分段堆叠 + 明细浮层，诊断导出新增 `### 上下文占用账目`；拉取式读控制器快照、锚定 API prompt_tokens、CJK 修正、exact/near 重复检测与 `unaccounted` 诚实残差。触发：新增核心可观测性模块。
 
 - [2026-10-05] [Skill 技能模块落地](./2026-10-05-skill-module.md) — `SKILL.md` 指令包 + `read_skill` 按需加载；能力声明即门控（`knowledge.read` 全程放行）、md-tree-store 通用覆盖层、electron-free 核心便于单测、`resources/` 需强制入库。触发：新增核心模块。

@@ -1,2 +1,7 @@
 export * from './domain.ts'
 export * from './node.ts'
+export * from './game-test.ts'
+export * from './acceptance.ts'
+export * from './contracts.ts'
+export * from './runtime.ts'
+export * from './desktop-migration.ts'

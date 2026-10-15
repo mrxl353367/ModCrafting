@@ -1,455 +1,48 @@
-<div align="center">
-
-<img src="packaging/appIcon.png" alt="ModCrafting" width="128" height="128" />
-
 # ModCrafting
 
-**面向 Fabric 模组开发的 AI 原生桌面环境 —— 用 Vibecoding 把想法变成可运行的 Minecraft 模组。**
+面向外部 Agent 的 Minecraft Fabric 1.21.4 开发与可信游戏验收工具。
 
-[简体中文](#modcrafting) · [English](#english) · [从源码构建](#从源码构建) · [架构](#架构概览) · [Issue](https://github.com/newstarbar/ModCrafting/issues) · [Discussions](https://github.com/newstarbar/ModCrafting/discussions)
+Agent / IDE 负责模型、对话、规划和编辑；ModCrafting Core 提供项目、知识、构建、Minecraft 运行与 Observer V2 测试。可选浏览器工作台与 MCP 使用同一 Core，关闭页面后任务继续运行。
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
-[![Electron](https://img.shields.io/badge/Electron-42-47848F?logo=electron&logoColor=white)](https://www.electronjs.org/)
-[![Fabric](https://img.shields.io/badge/Fabric-1.21.4-DBA765)](https://fabricmc.net/)
-[![Platform](https://img.shields.io/badge/Platform-Windows%20x64-0078D4?logo=windows)](https://github.com/newstarbar/ModCrafting)
+当前支持 Windows x64、Node.js 22.15+ 或 24、系统 JDK 21 和工程 Gradle Wrapper。源码安装使用 pnpm 10.34.7；无需配置 ModCrafting 模型密钥。
 
-</div>
+## 快速开始
 
-> [!IMPORTANT]
-> **ModCrafting 与 Mojang / Microsoft 无任何官方关联。** 使用本软件即表示你同意遵守 [Minecraft 最终用户许可协议](https://www.minecraft.net/zh-hans/eula)。本软件不包含 Minecraft 游戏本体。
+本地跨宿主交付、安装与配置见 [产品交接](docs/product-handoff.md) 和 [Codex / Claude / Qoder 指南](docs/host-distribution.md)。产品包无需 Electron、源码或 node_modules；MCP 默认不启用 HTTP，显式加 `--web` 共用浏览器，或使用 `--web-only` 独立运行。
 
-> [!TIP]
-> **不懂 Gradle？没关系。** 右侧「游戏」面板用图形化进度展示启动状态；AI 负责写代码、改文件、触发构建。终端与命令行默认折叠在「高级」页，仅供开发者备用。
-
-> [!NOTE]
-> **精简安装包 + 首次下载。** 安装包仅含 Electron 本体（约 95 MB），首次启动从国内镜像下载 JDK 21 + Gradle 9.5 + Fabric 依赖（约 1.2 GB，5-10 分钟）；下载完成后在无网络或弱网环境下仍可完成模组编译与 `runClient` 测试。
-
----
-
-## ModCrafting 是什么
-
-ModCrafting 把 **AI 对话式开发（Vibecoding）**、**Fabric 工程脚手架**、**一键游戏内测试** 和 **离线构建环境** 整合进同一个 Electron 桌面应用。
-
-你描述想要的功能 → AI 建立验收契约并修改项目 → 构建并启动专用测试世界 → 用动作后的客观证据逐项裁决。
-不必在 IDE、终端、Gradle 日志和游戏窗口之间来回切换。
-
----
-
-## 核心能力
-
-| 能力 | 说明 |
-|------|------|
-| **三模式智能路由** | 每轮独立 LLM 分类，自动分流至 **Chat**（概念问答）/ **Plan**（结构化计划）/ **Execute**（逐步执行）；同时识别错误报告、用户症状、游戏内验证请求等侧面信号 |
-| **Vibecoding 对话开发** | Chat / Plan / Execute 每轮分类；计划提交 AcceptanceContract；宿主管理实现 → build → run → game_test |
-| **Fabric 项目向导** | 图形化新建项目：Mod ID、包名、作者、版本；自动生成 `build.gradle`、`fabric.mod.json`、入口类 |
-| **模板快速创建** | 7 种内置模板（自定义方块 / 物品 / 食物 / 实体 / 工具 / 护甲 / 配方），表单填写后跳过 Plan 阶段，直接由 `fabric_template_generate` 工具透传生成 |
-| **48 个内置 AI 工具** | 文件/知识/Fabric/构建/游戏/用户交互/流程控制；能力、超时与步骤可见性由单一策略目录统一管理 |
-| **验收与修复护栏** | `PASS` / `FAIL` / `INCONCLUSIVE` 三态裁决；动作后新鲜证据；修复范围限制；每步骤 20 模型轮次 / 40 工具调用 / 3 修复循环 |
-| **上下文压缩** | 老旧工具结果微压缩 + 接近 token 上限触发 LLM 摘要 + 跨轮诊断保留（近期 5 条用户反馈 + 2 条助手摘要） |
-| **确定性游戏测试** | `run` 与 `game_test` 分离；专用测试世界执行 Arrange → Act → Assert → Cleanup；截图不能单独通过 |
-| **受限自动修复** | 自动检测崩溃并附加证据；只有范围内、可重复的产品失败可以修改代码，环境和能力问题保持 `INCONCLUSIVE` |
-| **离线优先工具链** | 精简 JRE 内置 + 首次下载 Gradle / Fabric 依赖种子（国内镜像）；启动遮罩 + 下载预估 + 进度条，环境未就绪前锁定构建 |
-| **高级开发者区** | 编译检查、可折叠构建日志、可展开 xterm、调试日志面板 |
-| **API 密钥本地加密** | 支持 DeepSeek 等 OpenAI 兼容端点；密钥仅存本机，不进仓库 |
-
----
-
-## 快速开始（用户）
-
-### 环境要求
-
-| 项目 | 要求 |
-|------|------|
-| 操作系统 | **Windows 10/11 x64**（当前主要支持平台） |
-| 磁盘空间 | 建议 ≥ **5 GB**（含工具链与依赖缓存） |
-| 网络 | 首次打包/预取依赖时需要；日常使用可离线构建 |
-| AI | 自备 [DeepSeek](https://platform.deepseek.com/api_keys) 或其他兼容 API Key |
-
-### 安装
-
-从 [GitHub Releases](https://github.com/newstarbar/ModCrafting/releases) 或 [Gitee 发布页](https://gitee.com/chenmo-starry-sky/mod-crafting/releases) 下载（**国内用户推荐 Gitee**）：
-
-| 安装包 | 大小 | 网络 | 适用场景 |
-|--------|------|------|----------|
-| **完整版** `ModCrafting Setup <version>.exe` | ~80-90 MB | 首次启动下载依赖（约 620 MB，国内镜像 5-10 分钟），之后可离线 | **推荐**。日常开发、网络不稳定 |
-| **便携版** `ModCrafting <version> Portable.exe` | ~70-80 MB | **首次必须联网**下载工具链（约 1 GB） | U 盘、临时机器、可接受首启下载 |
-
-> 文件名中的版本号与 Release 标签一致（例如标签 `v1.0.1` 对应 `1.0.1`）。
-
-- **完整版（Setup）**：安装包仅含 Electron 本体（约 95 MB）；首次启动从国内镜像（清华 TUNA + 腾讯云 + 华为云）下载 JDK 21 + Gradle 9.5 + Fabric 依赖到 `runtime/`，完成后可完全离线构建。
-- **便携版（Portable）**：仅含应用本体与小文件；首次启动自动联网下载 JDK / Gradle / Fabric 依赖。
-
-### 应用内更新
-
-- **Setup 完整版**：**帮助 → 检查更新**。优先从 Gitee 检测与下载，失败自动切换 GitHub；仍失败时可手动打开发布页。
-- **Portable 便携版**：不支持应用内自动升级，请到 Gitee / GitHub 发布页下载新版 Portable。
-
-### 三分钟上手
-
-```
-1. 启动 ModCrafting → 等待「构建环境已就绪」
-2. 左侧「设置」填入 API Key（默认 DeepSeek 端点）
-3. 新建 Fabric 项目，或打开已有项目
-4. 在中间对话区描述你的模组想法
-5. 右侧「游戏」→ 启动游戏，在 Minecraft 中验证效果
+```powershell
+# 产品根目录：数据根放在安装包外，使用自己的绝对路径
+$env:MODCRAFTING_DATA = 'D:\ModCrafting-Data\core'
+node ./plugin/dist/mcp-server.js --web-only
 ```
 
-### 快捷键
+打开终端打印的完整本机链接。已有工程 → 检查 JDK / Wrapper → 显式准备资源 → 应用产品中的 Observer V2 → 构建 → 启动隔离游戏 → 查看测试证据。公开 base-mods 包仍含 V1，具体替换步骤见产品交接。自动测试只进入 **ModCrafting Test World**；截图不能证明 PASS，能力不足为 INCONCLUSIVE。
 
-| 快捷键 | 动作 |
-|--------|------|
-| `Ctrl+N` | 新建项目 |
-| `Ctrl+O` | 打开项目 |
-| `Ctrl+B` | 编译检查（跳转「高级」页） |
-| `Ctrl+R` | 启动游戏客户端 |
-| `Ctrl+Shift+R` | 停止所有运行中的游戏实例 |
+Codex、Claude 原生调用已本地验证；Qoder 已安装并连接 19 工具，实际调用待可用登录环境。MCP Apps 嵌入和新游戏内界面尚未实现，浏览器为现有替代入口。完整状态见 [转型路线](docs/transformation-roadmap.md)。本地交付不代表远端发布或远端 CI 已执行。
 
----
+## 从源码开发
 
-## 界面一览
-
-```
-┌──────────────┬────────────────────────────┬─────────────────┐
-│  会话 / 设置  │      AI 对话（Vibecoding）   │   游戏           │
-│  文件树      │      计划 · 执行 · 流式输出   │   高级           │
-│  最近项目    │                            │  （构建/终端）    │
-└──────────────┴────────────────────────────┴─────────────────┘
-│                  状态栏：模型 · Token · 工具链                    │
-└─────────────────────────────────────────────────────────────────┘
+```powershell
+pnpm install --frozen-lockfile --ignore-scripts
+pnpm run build       # 独立 MCP + Bench + 数据迁移 CLI
+pnpm run start       # 可选浏览器工作台，打开打印链接
+pnpm run dev         # 重建 MCP 后启动工作台；源码变更后重新运行
+pnpm run typecheck   # Core/MCP 与浏览器
+pnpm test            # 独立 Core / 浏览器 / 分发 / 迁移回归
 ```
 
-> 截图与演示 GIF 将在后续 Release 中补充。欢迎通过 [Show and tell](https://github.com/newstarbar/ModCrafting/discussions) 分享你的使用场景。
+只共享 pnpm Store，各 Worktree 使用独立 node_modules。源码仓暂保留旧 Desktop 开发依赖；使用 `--ignore-scripts` 避免 Electron 等依赖生命周期下载，独立交付包不携带它们。默认 postinstall 只检查 esbuild。完整 Observer 产品组装见产品交接，`pnpm run build` 不构建 Java、不启动游戏或发布。
 
----
+完整候选包与真实模组验收：`pnpm run candidate:build` 从当前 Observer 源码组装三宿主产品，系统 JDK21 必需；步骤见 [候选指南](docs/candidate-validation.md)。MCP 新建工程已包含固定版本 Wrapper，首次构建可能下载 Gradle/依赖。
 
-## 架构概览
+## 从旧 Desktop 迁移
 
-```mermaid
-flowchart TB
-  subgraph ui [Renderer - React]
-    Chat[ChatPanel]
-    subgraph harness [Vibecoding Harness]
-      Classifier[turn-classifier<br/>意图分类]
-      Controller[controller<br/>三模式系统提示词]
-      Agent[agent<br/>LLM 循环]
-      PlanGate[plan-phase-gate<br/>只读门控]
-      Contract[AcceptanceContract<br/>需求 → Oracle]
-      Workflow[workflow-engine<br/>步骤 + 证据 + 受限修复]
-      Policy[fabric-agent-policy<br/>领域护栏]
-      Tools[48 Tool Definitions]
-    end
-    Chat --> Classifier
-    Classifier --> Controller
-    Controller --> Contract
-    Contract --> Agent
-    Agent --> PlanGate
-    PlanGate --> Workflow
-    Workflow --> Agent
-    Policy -.-> Controller
-    Policy -.-> Workflow
-    Tools -.-> Agent
-    Game[McRuntimePanel]
-    Adv[BottomPanel / DevLog]
-  end
-  subgraph main [Main Process - Electron]
-    IPC[IPC Handlers]
-    BuildEnv[build-env: JDK Gradle 离线依赖]
-    McRT[mc-runtime: 多实例 runClient]
-    Term[terminal-handler]
-  end
-  Agent --> IPC
-  Game --> IPC
-  Adv --> IPC
-  IPC --> BuildEnv
-  IPC --> McRT
-  IPC --> Term
-  BuildEnv --> Gradle[gradlew build]
-  McRT --> RunClient[gradlew runClient]
-```
+先退出旧 Desktop，按 [迁移与功能替代清单](docs/desktop-retirement.md) 对明确的配置目录执行只读盘点，然后显式导入到全新 Core 数据根。仅迁移工程路径引用；工程、node_modules、密钥、聊天、存档和大缓存原地保留。Agent 和浏览器重新检查路径，可继续打开原工程。
 
-**默认技术栈（新建项目）**
+旧 Electron 启动/构建改用 `desktop:*`，历史命令 `build:win*` 保留作兼容入口；标签推送不再自动发布 Desktop。旧源码保留作兼容参考，不参与独立产品构建，见 [历史 Desktop 说明](docs/legacy-desktop.md)。
 
-| 组件 | 版本 |
-|------|------|
-| Minecraft | 1.21.4 |
-| Fabric Loader | 0.16.10 |
-| Fabric API | 0.116.0+1.21.4 |
-| Fabric Loom | 1.17.12 |
-| Gradle | 9.5.0 |
-| Java | 21 |
+## 文档与许可
 
-版本锁定见 [`resources/fabric-versions.json`](resources/fabric-versions.json)。
+[架构](docs/architecture.md) · [Core 契约](docs/core-contracts.md) · [命令](docs/commands.md) · [Fabric-Bench](docs/fabric-bench.md) · [文档索引](docs/README.md)
 
-> **详细文档**：架构、命令、Harness、工具链、知识库、归档机制等内容分类整理在 [`docs/`](docs/) 目录，导航见 [`docs/README.md`](docs/README.md)。AI Agent 工作指引见 [`AGENTS.md`](AGENTS.md) 与 [`CLAUDE.md`](CLAUDE.md)（均 ≤150 行精简版）。
-
----
-
-## 从源码构建
-
-适合贡献者与高级用户。需要 **Node.js 20+**、**Git**、**Windows x64**。
-
-### 1. 克隆与安装依赖
-
-```bash
-git clone https://github.com/newstarbar/ModCrafting.git
-cd ModCrafting
-npm install
-```
-
-### 2. 准备工具链
-
-```bash
-# 下载并解压 JDK 21 + Gradle 9.5 到 resources/
-npm run toolchain:setup
-
-# 验证工具链文件是否齐全
-npm run toolchain:verify
-```
-
-### 3. 预取 Fabric 依赖（需联网，约 1 GB）
-
-```bash
-npm run toolchain:prefetch
-```
-
-会在 `resources/gradle-home-seed/` 生成离线依赖种子。打包前还会压缩为 `gradle-home-seed.tar.xz` 并分片（用于首次启动下载）。
-
-### 4. 开发与打包
-
-```bash
-# 开发模式（热更新）
-npm run dev
-
-# 仅编译 TypeScript / 前端
-npm run build
-
-# Windows 安装包 + 便携版（一键构建两者）
-npm run build:win
-
-# 或分别构建
-npm run build:win:setup
-npm run build:win:portable
-```
-
-产物输出到 `release/`。
-
-### 常用脚本
-
-| 命令 | 说明 |
-|------|------|
-| `npm run test` | 运行 harness 单元测试 |
-| `npm run toolchain:setup` | 下载 JDK 21 + Gradle 发行版 |
-| `npm run toolchain:prefetch` | 预取 Fabric/Minecraft 依赖到种子目录 |
-| `npm run toolchain:verify` | 检查 JDK / Gradle / Wrapper |
-| `npm run toolchain:verify-offline` | 验证离线构建流程 |
-| `npm run build:win` | 构建 Setup + Portable（推荐发版用） |
-| `npm run build:win:setup` | 仅构建 NSIS 完整版（不含 JDK/Gradle，首启联网下载） |
-| `npm run build:win:portable` | 仅构建轻量便携版（不含 JDK/Gradle/seed） |
-| `npm run assets:icon` | 从 appIcon.png / installerIcon.png 生成 .ico |
-| `npm run release:manifest` | 渲染 `packaging/update-manifest.json`（发布用） |
-| `npm run release:notes` | 渲染 `packaging/release-body.md`（Release 正文） |
-| `npm run clean:local` | 清理本地 release/out 等生成物 |
-
-### 发布新版本
-
-1. 根据近期提交确定版本并更新 `package.json` 的 `version`
-2. 本地完成目标 Windows 产物构建
-3. 运行 `npm run release:publish`，由脚本创建并推送 tag、同步 GitHub/Gitee
-4. GitHub Actions 自动：
-   - 构建 Setup + Portable（仅含 Electron 本体）
-   - 发布 GitHub Release（Setup + Portable + 知识库辅助资源）
-   - 同步 Gitee Release（Setup + Portable + latest.yml，需配置 Secret `GITEE_TOKEN`）
-   - 更新 `packaging/update-manifest.json` 到 main
-5. 详见 [`RELEASE.md`](RELEASE.md)
-
----
-
-## AI 配置与 Vibecoding 流程
-
-在应用左侧「设置」中配置：
-
-| 字段 | 默认值 | 说明 |
-|------|--------|------|
-| API Endpoint | `https://api.deepseek.com/v1` | OpenAI 兼容接口地址 |
-| Model | `deepseek-flash` | 可从内置 Provider/模型列表切换 |
-| API Key | （用户填写） | 本地加密存储，**切勿提交到 Git** |
-
-Agent 每轮独立分类用户消息，自动分流至三种模式：
-
-- **Chat 模式**：概念问答、方案说明，禁用写入/执行工具，直接给最佳方案不做比较
-- **Plan 模式**：输出结构化 `submit_plan`（最多 9 个实现步骤 + AcceptanceContract；游戏行为附完整 V2 gameTest），最多 15 轮只读探索后建议提交
-- **Execute 模式**：宿主按证据逐步执行；游戏计划固定追加 build → run → game_test；只有范围内、可重复的产品失败进入受限修复
-
-模式切换由 `turn-classifier` 完成，同时识别「错误报告 / 用户症状 / 游戏内验证请求」等侧面信号并注入到目标块中。澄清工具 `ask_clarification` 仅允许用于产品偏好与需求歧义，代码事实（API 命名、类名、mixin 路径等）必须走工具勘察。
-
----
-
-## 与其他方案对比
-
-| | ModCrafting | 手动 IDEA + Gradle | 通用 AI 终端 Agent |
-|--|-------------|-------------------|-------------------|
-| 面向场景 | **Minecraft Fabric 模组** | 通用 Java | 通用代码 |
-| 新建 Fabric 项目 | **向导一键** | 手动模板 / 文档 | 需自己搭脚手架 |
-| 游戏内测试 | **专用测试世界 + V2 客观断言 + 三态裁决** | 自己跑 `gradlew runClient` | 通常不支持 |
-| 离线构建环境 | **内置捆绑** | 自行配置 JDK/Gradle | 依赖本机环境 |
-| 崩溃报告 → AI | **一键附加** | 手动复制日志 | 手动 |
-| 非开发者友好 | **默认图形化** | 低 | 中（终端为主） |
-| 许可证 | **GPL-3.0** | — | 各异 |
-
----
-
-## 项目结构
-
-```
-ModCrafting/
-├── src/
-│   ├── main/           # Electron 主进程：IPC、工具链、游戏实例、终端
-│   ├── preload/        # 安全桥接 API
-│   └── renderer/       # React UI：对话、游戏面板、项目向导
-├── scripts/            # 构建脚本（toolchain / assets / packaging / release / test）
-├── resources/          # Gradle Wrapper / Fabric 版本配置 / 知识库（由脚本生成，不进 Git）
-├── packaging/          # 安装包资源：图标、NSIS 脚本、许可说明
-└── package.json
-```
-
----
-
-## 故障排除
-
-<details>
-<summary><strong>启动时工具链初始化失败</strong></summary>
-
-1. **完整版首次启动**：会从国内镜像下载 Gradle + Fabric 依赖种子（约 620 MB），请确保网络稳定
-2. **完整版重复启动失败**：检查 `runtime/` 目录是否可写，确认磁盘空间 ≥ 2 GB
-3. 运行 `npm run toolchain:verify` 查看缺失项（开发者）
-4. 点击遮罩上的「重试」重新初始化；若网络问题持续，可尝试切换网络环境
-
-</details>
-
-<details>
-<summary><strong>游戏启动失败 / 编译错误</strong></summary>
-
-1. 在「游戏」卡片展开「查看技术详情」  
-2. 若有崩溃报告，点击「发送给 AI 修复」  
-3. 在「高级」页执行「构建」单独验证编译  
-4. 确认 API Key 有效且余额充足（AI 修复需要）  
-
-</details>
-
-<details>
-<summary><strong>多实例联机测试时第一个实例被关闭</strong></summary>
-
-请升级到最新版本。当前实现为每个实例分配独立 `gameDir` 与 Gradle 守护进程目录，避免第二个 `runClient` 停止第一个实例的 Daemon。
-
-</details>
-
-<details>
-<summary><strong>SmartScreen 提示「未知发布者」</strong></summary>
-
-开源构建暂未代码签名。点击「更多信息」→「仍要运行」。安装包与便携版均来自 GitHub Releases。
-
-</details>
-
----
-
-## 非目标
-
-> [!IMPORTANT]
-> ModCrafting 有意保持专注。以下能力**不在**当前设计范围内：
-
-- **Forge / NeoForge 支持** — 当前仅 Fabric + Loom
-- **macOS / Linux 安装包** — 欢迎社区贡献，官方优先 Windows
-- **内置 Minecraft 或 Mojang 账号** — 需用户自行拥有合法游戏副本
-- **多人联机服务器托管** — 仅提供本地多客户端实例测试
-- **替代专业 IDE 的全部功能** — 高级 Java 重构仍以 IDEA 为参照系
-
----
-
-## 参与贡献
-
-欢迎 Issue、PR 与 Discussions。
-
-1. Fork 本仓库  
-2. 创建特性分支：`git checkout -b feature/my-feature`  
-3. 从源码构建并验证：`npm run dev`  
-4. 提交 PR 并描述变更动机与测试方式  
-
-提交前请确认：
-
-- 未包含 API Key、`.env`、个人路径
-- 未提交 `node_modules/`、`release/`、`runtime/`、`resources/jdk-21/`、`resources/jre-21-minimal/`、`resources/seed-shards/` 等大文件
-- 遵循现有代码风格，改动范围尽量聚焦
-
----
-
-## 社区与支持
-
-- **Bug 反馈** → [Issues](https://github.com/newstarbar/ModCrafting/issues)  
-- **功能建议 / 使用展示** → [Discussions](https://github.com/newstarbar/ModCrafting/discussions)  
-- **安全问题** → 请通过 GitHub Security Advisory 私下报告，勿在公开 Issue 中贴密钥或漏洞细节  
-
----
-
-## 第三方组件
-
-安装包捆绑或依赖以下上游项目（非完整列表）：
-
-- [Electron](https://www.electronjs.org/) · [React](https://react.dev/) · [Vite](https://vitejs.dev/)
-- [Eclipse Temurin JDK 21](https://adoptium.net/) · [Gradle](https://gradle.org/)
-- [Fabric Loader / Loom / API](https://fabricmc.net/)
-- [xterm.js](https://xtermjs.org/) · [node-pty](https://github.com/microsoft/node-pty)
-
-详细许可说明见 [`THIRD_PARTY.md`](THIRD_PARTY.md) 与安装目录许可文件。
-
----
-
-## 许可证
-
-本项目源码以 **[GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.html)** 发布（见 [`package.json`](package.json)）。上传 GitHub 前请在根目录添加 `LICENSE` 全文文件。
-
-安装包内的 [`packaging/license_zh_CN.txt`](packaging/license_zh_CN.txt) 为面向最终用户的分发说明，与源码许可证相互独立。
-
----
-
-<div align="center">
-
-**如果觉得 ModCrafting 有帮助，欢迎 Star**
-
-Built by [@newstarbar](https://github.com/newstarbar) and contributors
-
-</div>
-
----
-
-<a id="english"></a>
-
-## English
-
-**ModCrafting** is an AI-native desktop environment for **Minecraft Fabric mod development**. Describe a mod in natural language; the agent plans against an acceptance contract, builds it, and verifies gameplay with post-action evidence in a dedicated test world.
-
-### Highlights
-
-- Three-mode routing (Chat / Plan / Execute) via per-turn LLM classification
-- Vibecoding agent with Chat / Plan / Execute routing, 46 policy-governed tools, AcceptanceContract requirements, and bounded repair
-- Fabric project wizard + 7 built-in quick-create templates (block / item / food / entity / tool / armor / recipe)
-- Context compaction: micro-compact old tool results, LLM summary near token limit, cross-turn diagnosis retention
-- Slim installer (~400-500 MB) with bundled minimal JRE; first launch downloads Gradle + Fabric deps (~620 MB via domestic mirrors)
-- Deterministic Arrange → Act → Assert → Cleanup game tests with PASS / FAIL / INCONCLUSIVE verdicts
-- Crash reports can be attached to AI; only reproducible, in-scope product failures may trigger automatic repair
-
-### Quick start (developers)
-
-```bash
-git clone https://github.com/newstarbar/ModCrafting.git
-cd ModCrafting
-npm install
-npm run toolchain:setup
-npm run toolchain:prefetch
-npm run dev
-```
-
-### Disclaimer
-
-Not affiliated with Mojang or Microsoft. You must own a legitimate copy of Minecraft and comply with the [Minecraft EULA](https://www.minecraft.net/en-us/eula).
-
-Licensed under **GPL-3.0** — see [`package.json`](package.json).
+GPL-3.0；Observer MIT，分发包附各依赖许可。ModCrafting 与 Mojang / Microsoft 无官方关联；不含 Minecraft 游戏本体，使用游戏需遵守其 EULA。

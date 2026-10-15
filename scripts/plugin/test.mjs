@@ -1,18 +1,11 @@
-#!/usr/bin/env node
 import { spawnSync } from 'node:child_process'
-import { existsSync } from 'node:fs'
-import { cp, rm } from 'node:fs/promises'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
-
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const server = path.join(root, 'plugins', 'modcrafting-fabric', 'dist', 'mcp-server.js')
-if (!existsSync(server)) throw new Error('Plugin has not been built. Run npm run plugin:build first.')
-const isolated = path.join(root, 'temp', 'plugin-isolation', 'modcrafting-fabric')
-await rm(path.dirname(isolated), { recursive: true, force: true })
-await cp(path.join(root, 'plugins', 'modcrafting-fabric'), isolated, { recursive: true, filter: (source) => !source.includes(`${path.sep}src${path.sep}`) && !source.includes(`${path.sep}scripts${path.sep}`) })
-const result = spawnSync(process.execPath, [path.join(isolated, 'dist', 'mcp-server.js'), '--self-test'], { cwd: isolated, encoding: 'utf8' })
-if (result.status !== 0) { process.stderr.write(result.stderr); process.exit(result.status || 1) }
-const output = JSON.parse(result.stdout.trim())
-if (output.ok !== true || output.tools !== 19) throw new Error(`Plugin MCP self-test did not expose all tools: ${result.stdout}`)
-console.log(JSON.stringify({ ok: true, isolated: true, ...output }))
+import { fileURLToPath, pathToFileURL } from 'node:url'
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
+// Protocol/isolation is plugin:smoke; this command runs focused Core correctness regressions.
+const guard = pathToFileURL(path.join(root, 'scripts/plugin/desktop-import-guard.mjs')).href
+const result = spawnSync(process.execPath, ['--experimental-strip-types', '--import', guard, '--test', 'scripts/test/harness-modcrafting-plugin-core.test.ts', 'scripts/test/harness-plugin-game-test.test.ts', 'scripts/test/harness-fabric-bench.test.ts', 'scripts/test/harness-plugin-runtime.test.ts', 'scripts/test/harness-fabric-bench-live.test.ts', 'scripts/test/harness-browser-view.test.ts', 'scripts/test/harness-host-distribution.test.ts', 'scripts/test/harness-desktop-migration.test.ts'], { cwd: root, encoding: 'utf8', timeout: 30000, windowsHide: true })
+process.stdout.write(result.stdout || '')
+process.stderr.write(result.stderr || '')
+if (result.error) console.error('Plugin tests did not complete within 30 seconds')
+process.exit(result.status ?? 1)

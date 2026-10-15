@@ -1,0 +1,27 @@
+{
+  "suiteVersion": 1,
+  "id": "fabric-bench-mvp",
+  "cases": [
+    { "id": "inventory-pass", "assertion": { "type": "inventory_contains", "itemId": "minecraft:stone", "countAtLeast": 2 }, "expected": { "verdict": "PASS", "code": "OK" } },
+    { "id": "inventory-fail", "assertion": { "type": "inventory_contains", "itemId": "minecraft:stone", "countAtLeast": 3 }, "expected": { "verdict": "FAIL", "code": "ASSERTION_FAILED" } },
+    { "id": "block-pass", "assertion": { "type": "block_equals", "x": 1, "y": 100, "z": 2, "blockId": "minecraft:stone" }, "expected": { "verdict": "PASS", "code": "OK" } },
+    { "id": "block-fail", "assertion": { "type": "block_equals", "x": 1, "y": 100, "z": 2, "blockId": "minecraft:air" }, "expected": { "verdict": "FAIL", "code": "ASSERTION_FAILED" } },
+    { "id": "entity-pass", "assertion": { "type": "entity_exists", "entityType": "minecraft:pig", "tag": "fixture" }, "expected": { "verdict": "PASS", "code": "OK" } },
+    { "id": "entity-fail", "assertion": { "type": "entity_exists", "entityType": "minecraft:cow" }, "expected": { "verdict": "FAIL", "code": "ASSERTION_FAILED" } },
+    { "id": "value-pass", "assertion": { "type": "snapshot_value", "source": "player", "pointer": "/health", "equals": 20 }, "expected": { "verdict": "PASS", "code": "OK" } },
+    { "id": "value-fail", "assertion": { "type": "snapshot_value", "source": "player", "pointer": "/health", "equals": 19 }, "expected": { "verdict": "FAIL", "code": "ASSERTION_FAILED" } },
+    { "id": "change-pass", "assertion": { "type": "snapshot_changed", "source": "player", "pointer": "/health", "from": 19, "to": 20 }, "before": { "player": { "health": 19 } }, "expected": { "verdict": "PASS", "code": "OK" } },
+    { "id": "change-fail", "assertion": { "type": "snapshot_changed", "source": "player", "pointer": "/health" }, "expected": { "verdict": "FAIL", "code": "ASSERTION_FAILED" } },
+    { "id": "old-hud", "assertion": { "type": "hud_text", "text": "success" }, "after": { "hudTrace": [{ "text": "success", "observedAt": 1 }] }, "expected": { "verdict": "INCONCLUSIVE", "code": "CAPABILITY_UNAVAILABLE" } },
+    { "id": "command-result", "assertion": { "type": "command_result", "command": "say fixture" }, "expected": { "verdict": "INCONCLUSIVE", "code": "CAPABILITY_UNAVAILABLE" } },
+    { "id": "missing-pointer", "assertion": { "type": "snapshot_value", "source": "player", "pointer": "/missing", "equals": null }, "expected": { "verdict": "INCONCLUSIVE", "code": "EVIDENCE_MISSING" } },
+    { "id": "missing-inventory", "assertion": { "type": "inventory_contains", "itemId": "minecraft:stone" }, "after": { "inventory": null }, "expected": { "verdict": "INCONCLUSIVE", "code": "EVIDENCE_MISSING" } },
+    { "id": "missing-bridge", "assertion": { "type": "inventory_contains", "itemId": "minecraft:stone" }, "mode": "missing_snapshot", "expected": { "verdict": "INCONCLUSIVE", "code": "EVIDENCE_MISSING" } },
+    { "id": "stale-snapshot", "assertion": { "type": "inventory_contains", "itemId": "minecraft:stone" }, "mode": "same_snapshot", "expected": { "verdict": "INCONCLUSIVE", "code": "EVIDENCE_MISSING" } },
+    { "id": "wrong-world", "assertion": { "type": "inventory_contains", "itemId": "minecraft:stone" }, "mode": "wrong_world", "expected": { "verdict": "INCONCLUSIVE", "code": "ENVIRONMENT_UNAVAILABLE" } },
+    { "id": "action-error", "assertion": { "type": "inventory_contains", "itemId": "minecraft:stone" }, "mode": "action_failure", "expected": { "verdict": "INCONCLUSIVE", "code": "ENVIRONMENT_UNAVAILABLE" } },
+    { "id": "cleanup-error", "assertion": { "type": "inventory_contains", "itemId": "minecraft:stone" }, "mode": "cleanup_failure", "expected": { "verdict": "INCONCLUSIVE", "code": "CLEANUP_FAILED" } },
+    { "id": "cancelled", "assertion": { "type": "inventory_contains", "itemId": "minecraft:stone" }, "mode": "cancelled", "expected": { "verdict": "INCONCLUSIVE", "code": "ENVIRONMENT_UNAVAILABLE" } },
+    { "id": "invalid-spec", "assertion": { "type": "inventory_contains", "itemId": "minecraft:stone" }, "mode": "invalid_spec", "expected": { "verdict": "INCONCLUSIVE", "code": "INVALID_SPEC" } }
+  ]
+}

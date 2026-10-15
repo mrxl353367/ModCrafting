@@ -1,4 +1,5 @@
 /** Shared, host-neutral Fabric and Observer V2 contracts. */
+import { z } from 'zod'
 export const FABRIC_TARGET = {
   minecraft: '1.21.4',
   loader: '0.16.10',
@@ -45,19 +46,42 @@ export function pointerValue(value: unknown, pointer: string): unknown {
   if (!pointer.startsWith('/')) return undefined
   return pointer.slice(1).split('/').reduce<unknown>((current, raw) => {
     const key = raw.replace(/~1/g, '/').replace(/~0/g, '~')
+    if (['__proto__', 'prototype', 'constructor'].includes(key)) return undefined
     if (Array.isArray(current)) return current[Number(key)]
     if (current && typeof current === 'object') return (current as Record<string, unknown>)[key]
     return undefined
   }, value)
 }
 
-export function validateGameTestSpec(value: unknown): { ok: true; spec: GameTestSpec } | { ok: false; error: string } {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return { ok: false, error: 'game test must be an object' }
-  const raw = value as Record<string, unknown>
-  const type = raw.featureType
-  if (raw.version !== 2 || typeof raw.id !== 'string' || !raw.id.trim()) return { ok: false, error: 'game test requires version=2 and id' }
-  if (!['new_item', 'new_block', 'new_recipe', 'entity_behavior', 'player_interaction', 'hud_gui'].includes(String(type))) return { ok: false, error: 'unsupported featureType' }
-  for (const field of ['setup', 'actions', 'assertions', 'cleanup']) if (!Array.isArray(raw[field])) return { ok: false, error: `game test field ${field} must be an array` }
-  if ((raw.assertions as unknown[]).length === 0) return { ok: false, error: 'game test requires at least one assertion' }
-  return { ok: true, spec: raw as unknown as GameTestSpec }
+const text = z.string().trim().min(1)
+const registryId = z.string().regex(/^[a-z0-9_.-]+:[a-z0-9_./-]+$/)
+const label = text.optional()
+const actionSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('command'), command: text, label }).strict(),
+  z.object({ type: z.literal('input'), action: text, args: z.record(z.string(), z.json()).optional(), label }).strict(),
+  z.object({ type: z.literal('wait'), ms: z.number().int().min(0).max(10000), label }).strict()
+])
+const source = z.enum(['player', 'serverPlayer', 'screen', 'containerSlots', 'entity', 'inventory', 'blocks', 'entities', 'renderTrace', 'hudTrace', 'combatTrace'])
+const pointer = text.refine((value) => value.startsWith('/') && !/~(?![01])/.test(value) && !value.slice(1).split('/').some((key) => ['__proto__', 'prototype', 'constructor'].includes(key.replace(/~1/g, '/').replace(/~0/g, '~'))), 'requires a safe JSON pointer')
+const assertionSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('inventory_contains'), itemId: registryId, countAtLeast: z.number().int().positive().optional() }).strict(),
+  z.object({ type: z.literal('block_equals'), x: z.number().int(), y: z.number().int(), z: z.number().int(), blockId: registryId }).strict(),
+  z.object({ type: z.literal('entity_exists'), entityType: registryId.optional(), tag: text.optional(), exists: z.boolean().optional() }).strict().refine((value) => Boolean(value.entityType || value.tag), 'entity assertion requires type or tag'),
+  z.object({ type: z.literal('snapshot_value'), source, pointer, equals: z.json() }).strict(),
+  z.object({ type: z.literal('snapshot_changed'), source, pointer, from: z.json().optional(), to: z.json().optional() }).strict(),
+  z.object({ type: z.literal('hud_text'), text, match: z.enum(['exact', 'contains']).optional() }).strict(),
+  z.object({ type: z.literal('command_result'), command: text, minResult: z.number().int().min(0).optional() }).strict()
+])
+const gameTestSchema = z.object({
+  version: z.literal(2),
+  id: z.string().regex(/^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$/),
+  featureType: z.enum(['new_item', 'new_block', 'new_recipe', 'entity_behavior', 'player_interaction', 'hud_gui']),
+  subject: z.object({ modId: text.optional(), id: text.optional(), hotkey: text.optional() }).strict(),
+  setup: z.array(actionSchema), actions: z.array(actionSchema).min(1), assertions: z.array(assertionSchema).min(1), cleanup: z.array(actionSchema), visualOnly: z.boolean().optional()
+}).strict()
+
+export function validateGameTestSpec(value: unknown): { ok: true; spec: GameTestSpec } | { ok: false; code: 'INVALID_SPEC'; error: string } {
+  const parsed = gameTestSchema.safeParse(value)
+  if (!parsed.success) return { ok: false, code: 'INVALID_SPEC', error: parsed.error.issues.map((issue) => `${issue.path.join('.') || 'spec'}: ${issue.message}`).join('; ') }
+  return { ok: true, spec: parsed.data as GameTestSpec }
 }

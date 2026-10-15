@@ -1,14 +1,18 @@
-name: Release
+name: Legacy Desktop Release (manual only)
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      confirm_legacy_desktop:
+        description: 'Explicitly publish the retired Desktop for a selected existing v* tag'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: write
 
-# 防止同 tag 重复推送时并发运行（delete + recreate tag 会触发两次）。
+# 防止同 tag 多次手动派发时并发运行。
 # 取消旧 run，让新 run 基于 latest code 独占执行，cleanup 步骤会清理旧 draft。
 concurrency:
   group: release-${{ github.ref_name }}
@@ -16,6 +20,7 @@ concurrency:
 
 jobs:
   release:
+    if: ${{ inputs.confirm_legacy_desktop && startsWith(github.ref, 'refs/tags/v') }}
     runs-on: windows-latest
     timeout-minutes: 120
     env:
@@ -28,10 +33,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.7
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
+          cache: 'pnpm'
 
       - name: Cache toolchain resources
         uses: actions/cache@v4
@@ -58,7 +67,7 @@ jobs:
         run: pip install -r scripts/assets/requirements-assets.txt
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Cache NSISBI toolset
         uses: actions/cache@v4
@@ -70,22 +79,22 @@ jobs:
         run: node scripts/packaging/setup-nsisbi.mjs
 
       - name: Typecheck
-        run: npm run typecheck
+        run: pnpm run desktop:typecheck
 
       - name: Run harness tests
-        run: npm run test
+        run: pnpm run test:harness
 
       - name: Setup full toolchain
-        run: npm run toolchain:setup
+        run: pnpm run toolchain:setup
 
       - name: Prefetch Fabric deps
-        run: npm run toolchain:prefetch
+        run: pnpm run toolchain:prefetch
 
       - name: Verify toolchain
-        run: npm run toolchain:verify
+        run: pnpm run toolchain:verify
 
       - name: Generate Fabric symbol index
-        run: npm run toolchain:symbol-index
+        run: pnpm run toolchain:symbol-index
 
       - name: Download knowledge bases
         run: node scripts/knowledge/download-knowledge-base.mjs
@@ -95,20 +104,20 @@ jobs:
 
       - name: Prepare installer assets
         run: |
-          npm run assets:icon
+          pnpm run assets:icon
           node scripts/packaging/patch-nsis-install-ui.mjs
 
       - name: Prepare renderer assets
-        run: npm run assets:prepare
+        run: pnpm run assets:prepare
 
       - name: Render release notes
-        run: npm run release:notes -- "${{ github.ref_name }}"
+        run: pnpm run release:notes "${{ github.ref_name }}"
 
       - name: Render update manifest
-        run: npm run release:manifest -- "${{ github.ref_name }}"
+        run: pnpm run release:manifest "${{ github.ref_name }}"
 
       - name: Build app
-        run: npm run build
+        run: pnpm run desktop:build
 
       - name: Verify version matches tag
         shell: bash
@@ -123,7 +132,7 @@ jobs:
 
       - name: Cleanup duplicate GitHub Release
         shell: bash
-        run: npm run release:cleanup-github -- "${{ github.ref_name }}"
+        run: pnpm run release:cleanup-github "${{ github.ref_name }}"
 
       - name: Build Setup (NSIS) and publish GitHub Release
         run: node scripts/packaging/run-electron-builder.mjs --win nsis --publish always

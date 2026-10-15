@@ -25,7 +25,6 @@
 		"!node_modules/onnx-proto/**",
 		"!node_modules/flatbuffers/**",
 		"!node_modules/long/**",
-		"!node_modules/readable-stream/**",
 		"!node_modules/micromark*/**",
 		"!node_modules/mdast-*/**",
 		"!node_modules/remark-*/**",
