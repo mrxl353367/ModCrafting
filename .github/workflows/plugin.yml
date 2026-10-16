@@ -1,0 +1,92 @@
+name: Plugin foundation
+
+on:
+  pull_request:
+    paths:
+      - 'plugins/modcrafting-fabric/**'
+      - 'packages/modcrafting-core/**'
+      - 'packages/modcrafting-view/**'
+      - 'scripts/test/harness-browser-view.test.ts'
+      - 'scripts/test/harness-host-distribution.test.ts'
+      - 'scripts/test/harness-desktop-migration.test.ts'
+      - 'scripts/plugin/**'
+      - 'scripts/acceptance/**'
+      - 'examples/iron-ticket/**'
+      - 'bridge-mod/gradle/wrapper/**'
+      - 'bridge-mod/gradlew.bat'
+      - 'scripts/bench/**'
+      - 'scripts/test/harness-fabric-bench.test.ts'
+      - 'scripts/test/harness-fabric-bench-live.test.ts'
+      - 'scripts/test/harness-*-plugin*.test.ts'
+      - 'scripts/test/harness-plugin-game-test.test.ts'
+      - 'scripts/test/harness-plugin-runtime.test.ts'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.npmrc'
+      - '.github/workflows/plugin.yml'
+  push:
+    paths:
+      - 'plugins/modcrafting-fabric/**'
+      - 'packages/modcrafting-core/**'
+      - 'packages/modcrafting-view/**'
+      - 'scripts/test/harness-browser-view.test.ts'
+      - 'scripts/test/harness-host-distribution.test.ts'
+      - 'scripts/test/harness-desktop-migration.test.ts'
+      - 'scripts/plugin/**'
+      - 'scripts/acceptance/**'
+      - 'examples/iron-ticket/**'
+      - 'bridge-mod/gradle/wrapper/**'
+      - 'bridge-mod/gradlew.bat'
+      - 'scripts/bench/**'
+      - 'scripts/test/harness-fabric-bench.test.ts'
+      - 'scripts/test/harness-fabric-bench-live.test.ts'
+      - 'scripts/test/harness-*-plugin*.test.ts'
+      - 'scripts/test/harness-plugin-game-test.test.ts'
+      - 'scripts/test/harness-plugin-runtime.test.ts'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - '.npmrc'
+      - '.github/workflows/plugin.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  plugin:
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: pnpm
+      # Plugin uses JS/prebuilt esbuild only: do not download Electron or run native/Desktop installers.
+      - name: Install frozen dependencies without Desktop lifecycle scripts
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build standalone MCP
+        run: pnpm run plugin:build
+      - name: Validate manifest and entry
+        run: pnpm run plugin:validate
+      - name: Stage whitelist and reject private/development files
+        run: pnpm run plugin:stage
+      - name: Check plugin and Core types
+        run: pnpm run plugin:typecheck
+      - name: Check optional browser view types
+        run: pnpm run view:typecheck
+      - name: Real isolated MCP protocol smoke without Java or Minecraft
+        run: pnpm run plugin:smoke
+      - name: Core, browser and host distribution fixture regressions
+        run: pnpm run plugin:test
+      - name: Fabric-Bench offline verdict and error-code matrix
+        run: pnpm run bench:fabric
+      - name: Build portable Bench commands without running Minecraft
+        run: pnpm run bench:build
+      - name: Build and inspect standalone migration command
+        run: |
+          pnpm run migration:build
+          node temp/migration-artifacts/migrate-desktop.mjs --help
+      # No uploads, credentials, publish steps or real game acceptance in this workflow.

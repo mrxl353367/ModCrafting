@@ -1,3 +1,5 @@
+> P5 当前入口以 [AGENTS.md](./AGENTS.md) 和 [Desktop 退役指南](./docs/desktop-retirement.md) 为准：默认 build/dev/start/test/typecheck 均走 Core/MCP + 可选浏览器；旧 Electron 用 desktop:* 兼容，用户数据保留，tag 不自动发布。下文中的旧 Desktop 命令仅供历史参考。
+
 # CLAUDE.md
 
 本文件为 Claude Code 在此仓库中工作时提供精简指引。内容与 [AGENTS.md](./AGENTS.md) 同步，详细文档位于 [`docs/`](./docs/) 目录。

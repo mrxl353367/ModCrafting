@@ -1,0 +1,428 @@
+{
+  "suiteVersion": 1,
+  "id": "fabric-bench-live-mvp",
+  "execution": "live",
+  "cases": [
+    {
+      "id": "inventory_pass",
+      "prepare": [
+        "give @s minecraft:stone 1"
+      ],
+      "spec": {
+        "version": 2,
+        "id": "p2_inventory_pass",
+        "featureType": "player_interaction",
+        "subject": {},
+        "setup": [
+          {
+            "type": "command",
+            "command": "clear @s minecraft:stone"
+          }
+        ],
+        "actions": [
+          {
+            "type": "command",
+            "command": "give @s minecraft:stone 1"
+          },
+          {
+            "type": "wait",
+            "ms": 300
+          }
+        ],
+        "assertions": [
+          {
+            "type": "inventory_contains",
+            "itemId": "minecraft:stone",
+            "countAtLeast": 1
+          }
+        ],
+        "cleanup": [
+          {
+            "type": "command",
+            "command": "clear @s minecraft:stone"
+          }
+        ]
+      },
+      "expected": {
+        "verdict": "PASS",
+        "code": "OK"
+      }
+    },
+    {
+      "id": "inventory_fail",
+      "prepare": [
+        "give @s minecraft:stone 1"
+      ],
+      "spec": {
+        "version": 2,
+        "id": "p2_inventory_fail",
+        "featureType": "player_interaction",
+        "subject": {},
+        "setup": [
+          {
+            "type": "command",
+            "command": "clear @s minecraft:stone"
+          }
+        ],
+        "actions": [
+          {
+            "type": "command",
+            "command": "give @s minecraft:stone 1"
+          },
+          {
+            "type": "wait",
+            "ms": 300
+          }
+        ],
+        "assertions": [
+          {
+            "type": "inventory_contains",
+            "itemId": "minecraft:stone",
+            "countAtLeast": 2
+          }
+        ],
+        "cleanup": [
+          {
+            "type": "command",
+            "command": "clear @s minecraft:stone"
+          }
+        ]
+      },
+      "expected": {
+        "verdict": "FAIL",
+        "code": "ASSERTION_FAILED"
+      }
+    },
+    {
+      "id": "block_pass",
+      "prepare": [
+        "setblock 0 100 4 minecraft:dirt"
+      ],
+      "spec": {
+        "version": 2,
+        "id": "p2_block_pass",
+        "featureType": "player_interaction",
+        "subject": {},
+        "setup": [
+          {
+            "type": "command",
+            "command": "setblock 0 100 4 minecraft:air"
+          }
+        ],
+        "actions": [
+          {
+            "type": "command",
+            "command": "setblock 0 100 4 minecraft:stone"
+          },
+          {
+            "type": "wait",
+            "ms": 300
+          }
+        ],
+        "assertions": [
+          {
+            "type": "block_equals",
+            "x": 0,
+            "y": 100,
+            "z": 4,
+            "blockId": "minecraft:stone"
+          }
+        ],
+        "cleanup": [
+          {
+            "type": "command",
+            "command": "setblock 0 100 4 minecraft:air"
+          }
+        ]
+      },
+      "expected": {
+        "verdict": "PASS",
+        "code": "OK"
+      }
+    },
+    {
+      "id": "block_fail",
+      "prepare": [
+        "setblock 0 100 4 minecraft:dirt"
+      ],
+      "spec": {
+        "version": 2,
+        "id": "p2_block_fail",
+        "featureType": "player_interaction",
+        "subject": {},
+        "setup": [
+          {
+            "type": "command",
+            "command": "setblock 0 100 4 minecraft:air"
+          }
+        ],
+        "actions": [
+          {
+            "type": "command",
+            "command": "setblock 0 100 4 minecraft:stone"
+          },
+          {
+            "type": "wait",
+            "ms": 300
+          }
+        ],
+        "assertions": [
+          {
+            "type": "block_equals",
+            "x": 0,
+            "y": 100,
+            "z": 4,
+            "blockId": "minecraft:air"
+          }
+        ],
+        "cleanup": [
+          {
+            "type": "command",
+            "command": "setblock 0 100 4 minecraft:air"
+          }
+        ]
+      },
+      "expected": {
+        "verdict": "FAIL",
+        "code": "ASSERTION_FAILED"
+      }
+    },
+    {
+      "id": "entity_pass",
+      "prepare": [],
+      "spec": {
+        "version": 2,
+        "id": "p2_entity_pass",
+        "featureType": "player_interaction",
+        "subject": {},
+        "setup": [],
+        "actions": [
+          {
+            "type": "command",
+            "command": "summon minecraft:pig 1 101 1 {Tags:[\"modcrafting_p2_bench\"],NoAI:1b}"
+          },
+          {
+            "type": "wait",
+            "ms": 300
+          }
+        ],
+        "assertions": [
+          {
+            "type": "entity_exists",
+            "entityType": "minecraft:pig"
+          }
+        ],
+        "cleanup": [
+          {
+            "type": "command",
+            "command": "kill @e[tag=modcrafting_p2_bench]"
+          }
+        ]
+      },
+      "expected": {
+        "verdict": "PASS",
+        "code": "OK"
+      }
+    },
+    {
+      "id": "entity_fail",
+      "prepare": [],
+      "spec": {
+        "version": 2,
+        "id": "p2_entity_fail",
+        "featureType": "player_interaction",
+        "subject": {},
+        "setup": [],
+        "actions": [
+          {
+            "type": "command",
+            "command": "summon minecraft:pig 1 101 1 {Tags:[\"modcrafting_p2_bench\"],NoAI:1b}"
+          },
+          {
+            "type": "wait",
+            "ms": 300
+          }
+        ],
+        "assertions": [
+          {
+            "type": "entity_exists",
+            "entityType": "minecraft:pig",
+            "exists": false
+          }
+        ],
+        "cleanup": [
+          {
+            "type": "command",
+            "command": "kill @e[tag=modcrafting_p2_bench]"
+          }
+        ]
+      },
+      "expected": {
+        "verdict": "FAIL",
+        "code": "ASSERTION_FAILED"
+      }
+    },
+    {
+      "id": "value_pass",
+      "prepare": [],
+      "spec": {
+        "version": 2,
+        "id": "p2_value_pass",
+        "featureType": "player_interaction",
+        "subject": {},
+        "setup": [],
+        "actions": [
+          {
+            "type": "command",
+            "command": "tp @s 0 101 0"
+          },
+          {
+            "type": "wait",
+            "ms": 300
+          }
+        ],
+        "assertions": [
+          {
+            "type": "snapshot_value",
+            "source": "player",
+            "pointer": "/health",
+            "equals": 20
+          }
+        ],
+        "cleanup": []
+      },
+      "expected": {
+        "verdict": "PASS",
+        "code": "OK"
+      }
+    },
+    {
+      "id": "change_pass",
+      "prepare": [],
+      "spec": {
+        "version": 2,
+        "id": "p2_change_pass",
+        "featureType": "player_interaction",
+        "subject": {},
+        "setup": [
+          {
+            "type": "command",
+            "command": "tp @s 0 101 0 0 25"
+          }
+        ],
+        "actions": [
+          {
+            "type": "command",
+            "command": "tp @s 0 101 0 90 25"
+          },
+          {
+            "type": "wait",
+            "ms": 300
+          }
+        ],
+        "assertions": [
+          {
+            "type": "snapshot_changed",
+            "source": "player",
+            "pointer": "/yaw",
+            "from": 0,
+            "to": 90
+          }
+        ],
+        "cleanup": [
+          {
+            "type": "command",
+            "command": "tp @s 0 101 0 0 25"
+          }
+        ]
+      },
+      "expected": {
+        "verdict": "PASS",
+        "code": "OK"
+      }
+    },
+    {
+      "id": "cleanup_failed",
+      "prepare": [
+        "give @s minecraft:stone 1"
+      ],
+      "spec": {
+        "version": 2,
+        "id": "p2_cleanup_failed",
+        "featureType": "player_interaction",
+        "subject": {},
+        "setup": [
+          {
+            "type": "command",
+            "command": "clear @s minecraft:stone"
+          }
+        ],
+        "actions": [
+          {
+            "type": "command",
+            "command": "give @s minecraft:stone 1"
+          },
+          {
+            "type": "wait",
+            "ms": 300
+          }
+        ],
+        "assertions": [
+          {
+            "type": "inventory_contains",
+            "itemId": "minecraft:stone",
+            "countAtLeast": 1
+          }
+        ],
+        "cleanup": [
+          {
+            "type": "command",
+            "command": "modcrafting_deliberately_invalid_cleanup"
+          }
+        ]
+      },
+      "expected": {
+        "verdict": "INCONCLUSIVE",
+        "code": "CLEANUP_FAILED"
+      }
+    },
+    {
+      "id": "entity_tag_unavailable",
+      "prepare": [],
+      "spec": {
+        "version": 2,
+        "id": "p2_entity_tag_unavailable",
+        "featureType": "player_interaction",
+        "subject": {},
+        "setup": [],
+        "actions": [
+          {
+            "type": "command",
+            "command": "summon minecraft:pig 1 101 1 {Tags:[\"modcrafting_p2_bench\"],NoAI:1b}"
+          },
+          {
+            "type": "wait",
+            "ms": 300
+          }
+        ],
+        "assertions": [
+          {
+            "type": "entity_exists",
+            "entityType": "minecraft:pig",
+            "tag": "modcrafting_p2_bench"
+          }
+        ],
+        "cleanup": [
+          {
+            "type": "command",
+            "command": "kill @e[tag=modcrafting_p2_bench]"
+          }
+        ]
+      },
+      "expected": {
+        "verdict": "INCONCLUSIVE",
+        "code": "CAPABILITY_UNAVAILABLE"
+      }
+    }
+  ]
+}

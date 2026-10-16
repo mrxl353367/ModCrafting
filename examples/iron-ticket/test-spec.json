@@ -1,0 +1,102 @@
+{
+  "version": 2,
+  "id": "iron_ticket_use",
+  "featureType": "new_item",
+  "subject": {
+    "modId": "iron_ticket",
+    "id": "iron_ticket:ticket"
+  },
+  "setup": [
+    {
+      "type": "command",
+      "command": "gamemode survival @s"
+    },
+    {
+      "type": "command",
+      "command": "execute as @s[nbt={Inventory:[{}]}] run clear @s"
+    },
+    {
+      "type": "command",
+      "command": "fill -1 100 -1 1 100 1 minecraft:stone"
+    },
+    {
+      "type": "command",
+      "command": "tp @s 0 101 0 0 -60"
+    },
+    {
+      "type": "command",
+      "command": "item replace entity @s hotbar.0 with iron_ticket:ticket 2"
+    },
+    {
+      "type": "input",
+      "action": "key_press",
+      "args": {
+        "key": "1",
+        "durationMs": 80
+      }
+    },
+    {
+      "type": "wait",
+      "ms": 350
+    }
+  ],
+  "actions": [
+    {
+      "type": "input",
+      "action": "use",
+      "args": {
+        "durationMs": 100
+      }
+    },
+    {
+      "type": "wait",
+      "ms": 500
+    }
+  ],
+  "assertions": [
+    {
+      "type": "inventory_contains",
+      "itemId": "minecraft:iron_ingot",
+      "countAtLeast": 1
+    },
+    {
+      "type": "snapshot_value",
+      "source": "inventory",
+      "pointer": "/hotbar/0/id",
+      "equals": "iron_ticket:ticket"
+    },
+    {
+      "type": "snapshot_changed",
+      "source": "inventory",
+      "pointer": "/hotbar/0/count",
+      "from": 2,
+      "to": 1
+    },
+    {
+      "type": "snapshot_value",
+      "source": "inventory",
+      "pointer": "/hotbar/1/id",
+      "equals": "minecraft:iron_ingot"
+    },
+    {
+      "type": "snapshot_value",
+      "source": "inventory",
+      "pointer": "/hotbar/1/count",
+      "equals": 1
+    }
+  ],
+  "cleanup": [
+    {
+      "type": "command",
+      "command": "execute as @s[nbt={Inventory:[{}]}] run clear @s"
+    },
+    {
+      "type": "command",
+      "command": "gamemode creative @s"
+    },
+    {
+      "type": "command",
+      "command": "fill -1 100 -1 1 100 1 minecraft:air"
+    }
+  ]
+}

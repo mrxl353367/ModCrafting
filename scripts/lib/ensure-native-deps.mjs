@@ -1,34 +1,40 @@
 #!/usr/bin/env node
-/**
- * Ensure packages with blocked install scripts are usable.
- * Runs after npm install when Electron binary or esbuild binary is missing.
- */
+/** Restore esbuild only by default; explicit --desktop also checks/restores Electron. */
 import { existsSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
-import { join } from 'node:path'
+import { createRequire } from 'node:module'
+import { dirname, join } from 'node:path'
 
+const require = createRequire(import.meta.url)
 const root = process.cwd()
 
-function runNodeScript(relPath) {
-  const abs = join(root, relPath)
-  if (!existsSync(abs)) return false
-  const result = spawnSync(process.execPath, [abs], { stdio: 'inherit', cwd: root })
-  return result.status === 0
+function verifyElectron() {
+  try {
+    const binary = require('electron')
+    return existsSync(binary) && spawnSync(binary, ['--version'], {
+      cwd: root, encoding: 'utf8', windowsHide: true, timeout: 15000,
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }
+    }).status === 0
+  } catch { return false }
 }
 
-const electronExe = join(root, 'node_modules', 'electron', 'dist', 'electron.exe')
-if (!existsSync(electronExe)) {
-  console.log('[postinstall] Electron binary missing — running install.js')
-  if (!runNodeScript('node_modules/electron/install.js')) {
-    console.warn('[postinstall] Electron install failed. Close running Electron apps and run: node node_modules/electron/install.js')
-  }
+function verifyEsbuild() {
+  try {
+    require('esbuild').transformSync('const ready = true', { loader: 'js' })
+    return true
+  } catch { return false }
 }
 
-const esbuildExe = join(root, 'node_modules', '@esbuild', 'win32-x64', 'esbuild.exe')
-if (!existsSync(esbuildExe)) {
-  const esbuildInstall = join(root, 'node_modules', 'esbuild', 'install.js')
-  if (existsSync(esbuildInstall)) {
-    console.log('[postinstall] esbuild binary missing — running install.js')
-    runNodeScript('node_modules/esbuild/install.js')
+let failed = false
+for (const [name, verify] of [...(process.argv.includes('--desktop') ? [['electron', verifyElectron]] : []), ['esbuild', verifyEsbuild]]) {
+  if (!verify()) {
+    console.log(`[postinstall] Restoring ${name} binary`)
+    const install = join(dirname(require.resolve(`${name}/package.json`)), 'install.js')
+    const result = spawnSync(process.execPath, [install], { cwd: root, stdio: 'inherit', windowsHide: true })
+    if (result.status !== 0 || !verify()) {
+      console.error(`[postinstall] ${name} is not executable; repair the approved dependency installation`)
+      failed = true
+    }
   }
 }
+if (failed) process.exit(1)

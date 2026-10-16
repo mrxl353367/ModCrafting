@@ -17,10 +17,10 @@ test('black-box complex scenarios remain outside production source', () => {
   assert.deepEqual(fixtures.sort(), ['complete-project-minimax.json', 'death-rewind.json', 'kill-feed-hud.json', 'player-morph-toggle.json'])
 })
 
-test('current documentation tracks the built-in tool catalogue', () => {
+test('legacy Desktop documentation tracks the built-in tool catalogue', () => {
   const count = Object.keys(BUILTIN_TOOL_POLICIES).length
   const documents = [
-    'README.md',
+    'docs/legacy-desktop.md',
     'AGENTS.md',
     'CLAUDE.md',
     'docs/harness.md'
@@ -39,6 +39,6 @@ test('command documentation includes every Test Lab entry point', () => {
   const scripts = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).scripts as Record<string, string>
   const commands = fs.readFileSync(path.join(root, 'docs', 'commands.md'), 'utf8')
   for (const name of Object.keys(scripts).filter((name) => name === 'bridge:build' || name.startsWith('test:'))) {
-    assert.match(commands, new RegExp(`npm run ${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`), `docs/commands.md is missing ${name}`)
+    assert.match(commands, new RegExp(`pnpm run ${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`), `docs/commands.md is missing ${name}`)
   }
 })

@@ -6,6 +6,7 @@ import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.registry.Registries;
 import org.lwjgl.glfw.GLFW;
 
 import java.util.LinkedHashMap;
@@ -172,7 +173,7 @@ public final class InputActions {
             }
             // Verify there's an open container screen with the requested slot
             Screen screen = client.currentScreen;
-            if (!(screen instanceof net.minecraft.client.gui.screen.ingame.AbstractContainerScreen<?> containerScreen)) {
+            if (!(screen instanceof net.minecraft.client.gui.screen.ingame.HandledScreen<?> containerScreen)) {
                 return error("NO_CONTAINER_SCREEN", "click_slot 需要打开一个容器界面（如合成台、背包）；当前界面：" + (screen != null ? screen.getClass().getSimpleName() : "null"));
             }
             var handler = containerScreen.getScreenHandler();
@@ -186,7 +187,7 @@ public final class InputActions {
                 handler.syncId,
                 slot,
                 button,
-                shift ? net.minecraft.screen.ClickType.QUICK_MOVE : net.minecraft.screen.ClickType.PICKUP,
+                shift ? net.minecraft.screen.slot.SlotActionType.QUICK_MOVE : net.minecraft.screen.slot.SlotActionType.PICKUP,
                 client.player
             );
             return Map.of(

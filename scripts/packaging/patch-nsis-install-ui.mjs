@@ -5,10 +5,17 @@
  * - Use Nsis7z::ExtractWithCallback only for Setup (MODCRAFTING_SETUP_PROGRESS in installer.nsh)
  * - Portable uses vanilla Extract (no custom include / callback)
  */
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync, writeFileSync, renameSync } from 'node:fs'
 import { join } from 'node:path'
 
 const tpl = join(process.cwd(), 'node_modules', 'app-builder-lib', 'templates', 'nsis')
+
+// Replace the directory entry instead of overwriting a pnpm Store hard link.
+function writeLocalTemplate(file, content) {
+  const temporary = `${file}.${process.pid}.tmp`
+  writeFileSync(temporary, content)
+  renameSync(temporary, file)
+}
 
 if (!existsSync(tpl)) {
   console.warn('[nsis] app-builder-lib templates not found — run npm install first, skip patch')
@@ -24,7 +31,7 @@ if (!existsSync(installSectionPath)) {
 let installSection = readFileSync(installSectionPath, 'utf8')
 if (installSection.includes('SetDetailsPrint none')) {
   installSection = installSection.replace('SetDetailsPrint none', 'SetDetailsPrint both')
-  writeFileSync(installSectionPath, installSection)
+  writeLocalTemplate(installSectionPath, installSection)
   console.log('[nsis] installSection.nsh: SetDetailsPrint -> both')
 }
 
@@ -103,10 +110,10 @@ if (macroStart === -1 || macroEnd === -1) {
   console.warn('[nsis] extractUsing7za macro not found — skip extract patch')
 } else if (needsPatch) {
   extractContent = extractContent.slice(0, macroStart) + extractMacro + '\n' + extractContent.slice(macroEnd)
-  writeFileSync(extractPath, extractContent)
+  writeLocalTemplate(extractPath, extractContent)
   console.log('[nsis] extractAppPackage.nsh: extractUsing7za retry/message patch applied')
 } else {
-  writeFileSync(extractPath, extractContent)
+  writeLocalTemplate(extractPath, extractContent)
 }
 
 export default async function beforePack() {

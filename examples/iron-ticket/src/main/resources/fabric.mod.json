@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "iron_ticket",
+  "version": "0.1.0",
+  "name": "Iron Ticket",
+  "description": "First-use acceptance example: use one ticket to receive one iron ingot.",
+  "license": "GPL-3.0",
+  "environment": "*",
+  "entrypoints": { "main": ["com.modcrafting.example.IronTicketMod"] },
+  "depends": { "fabricloader": ">=0.16.10", "minecraft": "~1.21.4", "java": ">=21", "fabric-api": "*" }
+}

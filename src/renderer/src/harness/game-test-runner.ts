@@ -436,6 +436,7 @@ export function assertionFromSnapshot(
     return evidence(assertion, block?.blockId === assertion.blockId, `block: ${String(block?.blockId || 'missing')}`, data)
   }
   if (assertion.type === 'entity_exists') {
+    if (assertion.tag) return evidence(assertion, false, 'Observer V2 client snapshots cannot verify server command tags', data, true)
     const entities = Array.isArray(data.entities) ? data.entities as Record<string, unknown>[] : []
     const exists = entities.some((entry) =>
       (!assertion.entityType || entry.type === assertion.entityType) &&
@@ -663,6 +664,22 @@ async function persistReport(session: GameTestSession, spec: ReturnType<typeof g
   } catch {
     // Local report persistence must never change the test verdict.
   }
+}
+
+export async function cleanupDesktopTest(actions: GameAction[], run: (action: GameAction) => Promise<{ ok: boolean }>, observe: () => Promise<BridgeCallResult>): Promise<NonNullable<GameTestSession['cleanup']>> {
+  const status = { attempted: true, completed: 0, failed: false, reason: '' }
+  for (const action of actions) {
+    try {
+      const world = await observe()
+      if (!world.ok || world.data.worldName !== GAME_TEST_WORLD) { status.failed = true; status.reason = 'Dedicated world is unavailable; remaining cleanup skipped'; break }
+    } catch { status.failed = true; status.reason = 'World observation failed; remaining cleanup skipped'; break }
+    try {
+      const result = await run(action)
+      if (!result.ok) status.failed = true
+      else status.completed++
+    } catch { status.failed = true }
+  }
+  return status
 }
 
 export const mcRunTestTool: Tool = {
@@ -925,7 +942,8 @@ export const mcRunTestTool: Tool = {
       }
     } finally {
       session.phase = 'cleaning'
-      for (const action of spec.cleanup) await runAction(action, instanceId, resolvedVariables)
+      session.cleanup = await cleanupDesktopTest(spec.cleanup, (action) => runAction(action, instanceId, resolvedVariables), () => snapshot(instanceId))
+      if (session.cleanup.failed) { environmentalFailure = '测试清理未能安全完成。'; environmentalCode = 'CLEANUP_FAILED'; environmentalResponsibility = 'environment' }
     }
 
     const visualReviewOnly = Boolean(spec.visualOnly) && !hasObjectiveContract(spec)
@@ -982,12 +1000,16 @@ export const mcRunTestTool: Tool = {
       const visual = visualReviewOnly
       const defaultCode = 'code' in outcome ? outcome.code : undefined
       const defaultResponsibility = 'responsibility' in outcome ? outcome.responsibility : undefined
-      session.inconclusiveCode = visual
+      session.inconclusiveCode = session.cleanup?.failed
+        ? 'CLEANUP_FAILED'
+        : visual
         ? 'VISUAL_REVIEW_REQUIRED'
         : Boolean(spec.visualOnly)
           ? 'SPEC_INVALID_ASSERTION'
           : session.evidence.some((row) => row.unavailable) ? 'ASSERTION_CAPABILITY_UNAVAILABLE' : defaultCode
-      session.responsibility = visual
+      session.responsibility = session.cleanup?.failed
+        ? 'environment'
+        : visual
         ? 'visual_review'
         : Boolean(spec.visualOnly)
           ? 'agent_test_design'

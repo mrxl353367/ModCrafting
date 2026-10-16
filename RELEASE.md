@@ -1,3 +1,5 @@
+> P5 起旧 Desktop 不再随标签自动发布。此文保留历史流程；当前入口与手动发布限制见 [Desktop 退役指南](docs/desktop-retirement.md)。旧本地发布脚本改名 desktop:release:publish，任何远端写入须明确授权。
+
 # 发布流程
 
 ModCrafting v1.0.0 仅发布 Windows x64 的两个应用产物：

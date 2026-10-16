@@ -91,6 +91,7 @@ export type GameTestInconclusiveCode =
   | 'TRACE_CAPABILITY_UNAVAILABLE'
   | 'WORLD_TIME_NOT_ADVANCED'
   | 'INDEPENDENT_REPLAY_NOT_PROVEN'
+  | 'CLEANUP_FAILED'
 
 export type GameTestResponsibility = 'agent_test_design' | 'environment' | 'visual_review'
 
@@ -325,6 +326,7 @@ export interface GameTestSession {
   monotonicFinishedAt?: number
   failureSignature?: string
   runtimeState?: GameTestRuntimeState
+  cleanup?: { attempted: boolean; completed: number; failed: boolean; reason?: string }
 }
 
 export interface ApprovedLayoutRecord {

@@ -1,8 +1,10 @@
 # 架构概览
 
+当前转型架构与阶段以 [统一路线](./transformation-roadmap.md) 为准：Core/MCP + Observer，Agent/浏览器/游戏内展示可选，旧 Desktop 过渡兼容后退役。详见 [集成边界](./agent-integration-boundaries.md)。P5 默认 build/dev/start/test 已切换独立产品，旧 Electron 构建和发布退出默认入口；数据规则见 [退役与迁移](./desktop-retirement.md)。下文记录现有代码，主要是旧 Desktop 架构参考。
+
 ModCrafting 是面向 Minecraft Fabric 模组开发的 AI 原生 Electron 桌面应用。正式应用采用主进程、预加载和 Renderer 三层；开发测试时额外启用 Test Lab Automation Bridge，游戏内验证由随测试项目启动的 Observer 模组提供。
 
-## 运行时架构
+## 旧 Desktop 运行时架构（兼容参考）
 
 ```mermaid
 flowchart TB
