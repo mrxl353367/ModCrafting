@@ -3,10 +3,16 @@ import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { readFile, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
-import { FabricRuntime, CoreError, inspectFabricProject, resolveProjectPath, readProjectCatalog } from '../../../packages/modcrafting-core/src/index.ts'
+import { FabricRuntime, CoreError, inspectFabricProject, resolveProjectPath, readProjectCatalog, recipeWorkspace, recipeRequestSchema, contentWorkspace, contentRequestSchema } from '../../../packages/modcrafting-core/src/index.ts'
+import { guiWorkspace, guiRequestSchema } from '../../../packages/modcrafting-core/src/gui-workspace.ts'
+import { visualAssets } from '../../../packages/modcrafting-core/src/visual-assets.ts'
 
 const projectPath = z.string().min(1), instanceId = z.string().min(1)
 const actionSchema = z.discriminatedUnion('operation', [
+  z.object({ operation: z.literal('gui'), request: guiRequestSchema }).strict(),
+  z.object({ operation: z.literal('visuals'), projectPath, itemIds: z.array(z.string().min(1).max(200)).max(80), textureIds: z.array(z.string().min(1).max(200)).max(16) }).strict(),
+  z.object({ operation: z.literal('content'), request: contentRequestSchema }).strict(),
+  z.object({ operation: z.literal('recipe'), request: recipeRequestSchema }).strict(),
   z.object({ operation: z.literal('project'), projectPath }).strict(),
   z.object({ operation: z.literal('environment'), projectPath: projectPath.optional() }).strict(),
   z.object({ operation: z.literal('prepare') }).strict(),
@@ -68,6 +74,14 @@ export async function startBrowserView(runtime: FabricRuntime, assets: BrowserAs
       const action = parsed.data
       let value: unknown
       switch (action.operation) {
+        case 'gui': value = guiWorkspace(runtime.paths, action.request); break;
+        case 'visuals': {
+          const project = inspectFabricProject(resolveProjectPath(action.projectPath))
+          if (!project.valid || project.minecraftVersion !== '1.21.4') throw new CoreError('PROJECT_UNAVAILABLE', '需要有效的 Fabric 1.21.4 工程')
+          value = await visualAssets(runtime.paths, project.path, action.itemIds, action.textureIds); break
+        }
+        case 'content': value = contentWorkspace(runtime.paths, action.request); break
+        case 'recipe': value = recipeWorkspace(runtime.paths, action.request); break
         case 'project': value = { ok: true, project: inspectFabricProject(resolveProjectPath(action.projectPath)) }; break
         case 'environment': value = await runtime.environmentStatus(action.projectPath); break
         case 'prepare': value = await runtime.prepareAssets(); break

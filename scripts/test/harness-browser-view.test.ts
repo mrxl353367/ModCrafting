@@ -102,3 +102,21 @@ test('Browser exposes real Core verdicts/reports and bridge images; no arbitrary
   assert.equal((await f.call({ operation: 'stop', jobId: 'not-owned' })).code, 'JOB_NOT_FOUND')
   await f.call({ operation: 'stop', jobId: client.jobId }); await settled(f.runtime, client.jobId)
 })
+
+
+test('Browser texture batches require authentication, a supported project, and bounded IDs', async (t) => {
+  const f = await fixture(t)
+  await mkdir(path.join(f.project, 'src/main/resources'), { recursive: true })
+  await writeFile(path.join(f.project, 'src/main/resources/fabric.mod.json'), JSON.stringify({ schemaVersion: 1, id: 'visual_test', version: '1' }))
+  await writeFile(path.join(f.project, 'gradle.properties'), 'minecraft_version=1.21.4\n')
+  await writeFile(path.join(f.project, 'gradlew.bat'), '@echo fixture')
+  const cache = path.join(f.runtime.paths.assetsRoot, 'minecraft-textures/1.21.4')
+  await mkdir(path.join(cache, 'assets/minecraft/textures/item'), { recursive: true })
+  await writeFile(path.join(cache, '.visuals-ready.json'), JSON.stringify({ version: '1.21.4' }))
+  await writeFile(path.join(cache, 'assets/minecraft/textures/item/apple.png'), Buffer.from('89504e470d0a1a0a00000000', 'hex'))
+  const batch = { operation: 'visuals', projectPath: f.project, itemIds: ['minecraft:apple'], textureIds: ['minecraft:item/apple', 'minecraft:../secret'] }
+  const result = await f.call(batch)
+  assert.equal(result.ok, true); assert.equal(result.ready, true); assert.ok(result.items['minecraft:apple'].startsWith('data:image/png;base64,')); assert.equal(result.textures['minecraft:../secret'], null)
+  assert.equal((await f.call({ ...batch, itemIds: Array(81).fill('minecraft:apple') })).code, 'INVALID_ARGUMENT')
+  assert.equal((await fetch(f.url.origin + '/api/action', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(batch) })).status, 401)
+})

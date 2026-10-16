@@ -2,6 +2,7 @@ package com.modcrafting.observer;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
+import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.registry.Registries;
 import net.minecraft.recipe.RecipeEntry;
 import net.minecraft.server.MinecraftServer;
@@ -37,13 +38,14 @@ public final class GameTestApi {
         Map<String, Object> out = new LinkedHashMap<>();
         out.put("ok", true);
         out.put("protocolVersion", 2);
-        out.put("capabilityRevision", 4);
+        out.put("capabilityRevision", 5);
         out.put("observerSessionId", ModCraftingObserverClient.OBSERVER_SESSION_ID);
         out.put("commandExecution", client != null && client.getServer() != null);
         out.put("snapshot", true);
         out.put("snapshotFields", Map.of(
-                "player", List.of("uuid", "name", "x", "y", "z", "width", "height", "eyeHeight", "health", "food", "hunger", "saturation", "selectedSlot", "inventory", "dimension"),
-                "serverPlayer", List.of("uuid", "name", "x", "y", "z", "width", "height", "eyeHeight", "health", "hunger", "saturation", "selectedSlot", "inventory", "dimension", "worldTick"),
+                "player", List.of("uuid", "name", "x", "y", "z", "width", "height", "eyeHeight", "health", "food", "hunger", "saturation", "selectedSlot", "inventory", "dimension", "attackDamage", "attackSpeed", "armor", "armorToughness", "knockbackResistance"),
+                "serverPlayer", List.of("uuid", "name", "x", "y", "z", "width", "height", "eyeHeight", "health", "hunger", "saturation", "selectedSlot", "inventory", "dimension", "worldTick", "attributeSource", "attackDamage", "attackSpeed", "armor", "armorToughness", "knockbackResistance", "activeEffects"),
+                "blocks", List.of("x", "y", "z", "blockId", "hardness", "blastResistance", "luminance"),
                 "screen", List.of("ok", "inWorld", "className", "simpleName", "title", "kind", "pausesGame", "scaledWidth", "scaledHeight", "windowWidth", "windowHeight", "widgets", "containerSlots", "containerHandlerType", "containerSyncId", "cursorStack")
         ));
         out.put("queryKinds", List.of("registry", "block", "entities", "recipe"));
@@ -150,6 +152,10 @@ public final class GameTestApi {
                 block.put("y", y);
                 block.put("z", z);
                 block.put("blockId", Registries.BLOCK.getId(client.world.getBlockState(pos).getBlock()).toString());
+                var state = client.world.getBlockState(pos);
+                block.put("hardness", state.getHardness(client.world, pos));
+                block.put("blastResistance", state.getBlock().getBlastResistance());
+                block.put("luminance", state.getLuminance());
                 blocks.add(block);
             }
         }
@@ -161,7 +167,7 @@ public final class GameTestApi {
         out.put("renderTrace", ObservationTrace.renderSnapshot());
         out.put("combatTrace", ObservationTrace.combatSnapshot());
         out.put("observerSessionId", ModCraftingObserverClient.OBSERVER_SESSION_ID);
-        out.put("capabilityRevision", 4);
+        out.put("capabilityRevision", 5);
         out.put("traceCursors", Map.of(
                 "hudTrace", maxSequence(ObservationTrace.hudSnapshot()),
                 "renderTrace", maxSequence(ObservationTrace.renderSnapshot()),
@@ -256,6 +262,13 @@ public final class GameTestApi {
         out.put("pitch", player.getPitch());
         out.put("health", player.getHealth());
         out.put("maxHealth", player.getMaxHealth());
+        out.put("attributeSource", "integrated_server");
+        out.put("activeEffects", player.getActiveStatusEffects().keySet().stream().map(effect -> Registries.STATUS_EFFECT.getId(effect.value()).toString()).sorted().toList());
+        out.put("attackDamage", Math.round(player.getAttributeValue(EntityAttributes.ATTACK_DAMAGE) * 1000.0) / 1000.0);
+        out.put("attackSpeed", Math.round(player.getAttributeValue(EntityAttributes.ATTACK_SPEED) * 1000.0) / 1000.0);
+        out.put("armor", Math.round(player.getAttributeValue(EntityAttributes.ARMOR) * 1000.0) / 1000.0);
+        out.put("armorToughness", Math.round(player.getAttributeValue(EntityAttributes.ARMOR_TOUGHNESS) * 1000.0) / 1000.0);
+        out.put("knockbackResistance", Math.round(player.getAttributeValue(EntityAttributes.KNOCKBACK_RESISTANCE) * 1000.0) / 1000.0);
         out.put("hunger", player.getHungerManager().getFoodLevel());
         out.put("saturation", player.getHungerManager().getSaturationLevel());
         out.put("selectedSlot", player.getInventory().selectedSlot);

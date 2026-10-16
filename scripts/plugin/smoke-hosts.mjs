@@ -38,7 +38,7 @@ for (const host of ['codex', 'claude', 'qoder']) {
   const row = { host, nativeHostTest: false }
   try {
     await client.connect(transport)
-    assert.equal((await client.listTools()).tools.length, 19); row.tools = 19
+    assert.equal((await client.listTools()).tools.length, 22); row.tools = 22
     const call = async (name, args = {}) => { const reply = await client.callTool({ name, arguments: args }); return reply.structuredContent || JSON.parse(reply.content.find((value) => value.type === 'text').text) }
     const environment = await call('modcrafting_environment_status')
     assert.equal(environment.paths.dataRoot, dataRoot); assert.ok(environment.browserUrl)

@@ -6,9 +6,9 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import * as os from 'node:os'
 import {
-  FabricRuntime, CoreError, createRuntimePaths, ensureRuntimePaths, resolveProjectPath,
-  inspectFabricProject, lookupMinecraftData, scaffoldFabricProject, searchFabricDocs,
-  searchWiki, validateFabricProject, readProjectCatalog, type ProjectWrapper
+  FabricRuntime, CoreError, guiWorkspace, guiRequestSchema, createRuntimePaths, ensureRuntimePaths, resolveProjectPath,
+  inspectFabricProject, lookupMinecraftData, scaffoldFabricProject, searchFabricDocs, contentWorkspace, contentRequestSchema,
+  searchWiki, validateFabricProject, readProjectCatalog, recipeWorkspace, recipeRequestSchema, type ProjectWrapper
 } from '../../../packages/modcrafting-core/src/index.ts'
 import { startBrowserView, type BrowserAssets } from './browser-server.ts'
 
@@ -40,6 +40,9 @@ function failure(cause: unknown) { return error(String(cause), { code: cause ins
 function buildServer(): McpServer {
   ensureRuntimePaths(paths)
   const server = new McpServer({ name: 'modcrafting-fabric', version: __PLUGIN_VERSION__ })
+  server.registerTool('fabric_gui_workspace', { description: 'Get templates and list/read declarative Screen, configuration and HUD layouts; preview generated Fabric client files before save. Save requires expectedRevision and previewRevision. Unknown or externally modified Java stays read-only; display slots do not implement server containers.', inputSchema: guiRequestSchema }, async request => { try { return result(guiWorkspace(paths, request)) } catch (cause) { return failure(cause) } })
+  server.registerTool('fabric_content_workspace', { description: 'List/read supported declarative item, food, block, entity, tool and armor parameters. Preview changes before save; save requires matching expectedRevision and previewRevision. Handwritten or externally modified generated sources remain read-only.', inputSchema: contentRequestSchema }, async (request) => { try { return result(contentWorkspace(runtime.paths, request)) } catch (cause) { return failure(cause) } })
+  server.registerTool('fabric_recipe_workspace', { description: 'List/read Fabric 1.21.4 recipes, search the vanilla/project item catalog, or save a validated recipe using expectedRevision from the last read (null only for new files). Shared with the visual recipe editor; refuses external-edit conflicts and unsupported formats.', inputSchema: recipeRequestSchema }, async (request) => { try { return result(recipeWorkspace(paths, request)) } catch (cause) { return failure(cause) } })
   server.registerTool('modcrafting_environment_status', { description: 'Check the Windows, JDK 21, Gradle Wrapper and Fabric 1.21.4 prerequisites without changing the system.', inputSchema: z.object({ projectPath: z.string().optional() }) }, async ({ projectPath: value }) => { try { return result({ ...await runtime.environmentStatus(value), projectCatalog: readProjectCatalog(paths.dataRoot), ...(browser ? { browserUrl: browser.url } : {}) }) } catch (cause) { return failure(cause) } })
   server.registerTool('modcrafting_prepare_assets', { description: 'Download ModCrafting knowledge and test assets to the plugin data directory. Uses gh.xmly.dev first, then GitHub direct.', inputSchema: z.object({}) }, async () => { try { return result(await runtime.prepareAssets()) } catch (cause) { return failure(cause) } })
   server.registerTool('minecraft_data_lookup', { description: 'Look up standard Minecraft block, item, entity, enchantment, or recipe data before writing Fabric registration code.', inputSchema: z.object({ kind: z.enum(['block', 'item', 'entity', 'enchantment', 'recipe']), query: z.string().min(1) }) }, async ({ kind, query }) => result(lookupMinecraftData(paths, kind, query)))

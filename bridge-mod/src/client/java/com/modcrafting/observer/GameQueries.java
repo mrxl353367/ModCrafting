@@ -78,6 +78,11 @@ public final class GameQueries {
         out.put("height", round(player.getHeight()));
         out.put("eyeHeight", round(player.getEyeHeight(player.getPose())));
         out.put("movementSpeed", round(player.getAttributeValue(EntityAttributes.MOVEMENT_SPEED)));
+        out.put("attackDamage", round(player.getAttributeValue(EntityAttributes.ATTACK_DAMAGE)));
+        out.put("attackSpeed", round(player.getAttributeValue(EntityAttributes.ATTACK_SPEED)));
+        out.put("armor", round(player.getAttributeValue(EntityAttributes.ARMOR)));
+        out.put("armorToughness", round(player.getAttributeValue(EntityAttributes.ARMOR_TOUGHNESS)));
+        out.put("knockbackResistance", round(player.getAttributeValue(EntityAttributes.KNOCKBACK_RESISTANCE)));
         out.put("scoreboardTags", new ArrayList<>(player.getCommandTags()));
         out.put("food", player.getHungerManager().getFoodLevel());
         // Keep the semantic alias used by persisted game-test contracts. The
@@ -664,6 +669,10 @@ public final class GameQueries {
         m.put("name", stack.getName().getString());
         m.put("damage", stack.getDamage());
         m.put("maxDamage", stack.getMaxDamage());
+        m.put("maxCount", stack.getMaxCount());
+        m.put("miningSpeedStone", round(stack.getMiningSpeedMultiplier(net.minecraft.block.Blocks.STONE.getDefaultState())));
+        var food = stack.get(net.minecraft.component.DataComponentTypes.FOOD);
+        if (food != null) m.put("food", Map.of("nutrition", food.nutrition(), "saturation", round(food.saturation()), "canAlwaysEat", food.canAlwaysEat()));
         // Persist a stable component payload so inventory_v1 relations cannot
         // pass while custom data/components were silently dropped.
         m.put("componentFingerprint", stack.getComponents().toString());
@@ -685,6 +694,8 @@ public final class GameQueries {
         if (entity instanceof LivingEntity living) {
             m.put("health", living.getHealth());
             m.put("maxHealth", living.getMaxHealth());
+            try { m.put("movementSpeed", round(living.getAttributeValue(EntityAttributes.MOVEMENT_SPEED))); } catch (Exception ignored) {}
+            try { m.put("attackDamage", round(living.getAttributeValue(EntityAttributes.ATTACK_DAMAGE))); } catch (Exception ignored) {}
         }
         return m;
     }

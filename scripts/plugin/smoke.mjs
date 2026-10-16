@@ -91,9 +91,12 @@ await session({ MODCRAFTING_DATA: data, PATH: fixtures }, async (client, transpo
   toolCount = tools.length
   const names = tools.map((tool) => tool.name)
   assert.equal(new Set(names).size, names.length)
-  for (const name of ['modcrafting_environment_status', 'fabric_project_inspect', 'fabric_validate', 'minecraft_test_start', 'minecraft_test_status']) assert.ok(names.includes(name), `Missing ${name}`)
+  for (const name of ['modcrafting_environment_status', 'fabric_project_inspect', 'fabric_validate', 'fabric_recipe_workspace', 'fabric_content_workspace', 'fabric_gui_workspace', 'minecraft_test_start', 'minecraft_test_status']) assert.ok(names.includes(name), `Missing ${name}`)
   const ajv = new Ajv({ strict: false, validateFormats: false })
   for (const tool of tools) assert.equal(ajv.validateSchema(tool.inputSchema), true, `Invalid schema: ${tool.name}`)
+  assert.equal((await call(client, 'fabric_gui_workspace', { action: 'template', projectPath: path.join(fixtures, 'valid'), layoutType: 'hud-overlay' })).value.layoutType, 'hud-overlay');
+  assert.deepEqual((await call(client, 'fabric_gui_workspace', { action: 'list', projectPath: path.join(fixtures, 'valid') })).documents, []);
+  const content = await call(client, 'fabric_content_workspace', { action: 'list', projectPath: path.join(fixtures, 'valid') }); assert.ok(content.ok);
   const environment = await call(client, 'modcrafting_environment_status')
   assert.equal(environment.platform, process.platform)
   assert.equal(environment.target.minecraft, '1.21.4')
@@ -107,6 +110,7 @@ await session({ MODCRAFTING_DATA: data, PATH: fixtures }, async (client, transpo
   const newProject = path.join(scope, 'new-scaffold-with-wrapper')
   const created = await call(client, 'fabric_project_scaffold', { projectPath: newProject, modId: 'new_scaffold', modName: 'New Scaffold' })
   assert.equal(created.project.valid, true)
+  assert.deepEqual((await call(client, 'fabric_recipe_workspace', { action: 'list', projectPath: newProject })).recipes, [])
   assert.equal((await readFile(path.join(newProject, 'gradle/wrapper/gradle-wrapper.jar'))).subarray(0, 2).toString(), 'PK')
   assert.match(await readFile(path.join(newProject, 'gradle/wrapper/gradle-wrapper.properties'), 'utf8'), /distributionSha256Sum=[a-f0-9]{64}/)
   for (const valid of [true, false]) {

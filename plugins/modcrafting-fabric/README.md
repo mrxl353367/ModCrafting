@@ -8,9 +8,11 @@
 
 需要 Windows x64 和 Node 22/24。仅真正执行 Gradle 任务时需要 PATH 上的 JDK 21 与项目 Gradle Wrapper。初始化不下载资源。默认持久数据目录为 `%LOCALAPPDATA%\ModCrafting\fabric-plugin`；可设置绝对可写目录 `MODCRAFTING_DATA`，兼容旧 `PLUGIN_DATA` / `CODEX_PLUGIN_DATA`。缓存与安装目录分离。
 
+配方工坊提供材料搜索、3×3 拖放换位、五种原版配方、产物数量、JSON 变更预览、保存与刷新读回。文件写入 `src/main/resources/data/<namespace>/recipe/`；Web 与 Agent 共用版本检查，外部修改后拒绝覆盖并保留草稿。更新前使用 read 返回的 revision，新建时 expectedRevision 为 null；旧版本备份在数据目录 recipe-backups。未知序列化器或不支持的材料形式保持只读。当前物品采用文字图块，工程物品目录来自 items/models/item 资源，不能代替注册验证；标签成员和配方匹配需在游戏确认。MC UI、参数编辑、3D 和整合包工作流仍未交付。
+
 ## 构建与连接检查
 
-可选浏览器：`node ./dist/mcp-server.js --web-only` 启动独立服务；由 MCP 客户端添加 `--web` 时，页面与原 19 工具共用同一 Core。打开 stderr 的完整本机链接，或调用 modcrafting_environment_status 获取 browserUrl。可加 `--web-port=端口`，默认随机端口。默认 MCP 不开启 HTTP，不需修改打包配置；关闭页面不停止任务，关闭服务/宿主连接则停止本进程任务。资源 present 不等于 V2 已就绪，准备资源后仍需按完整产品 README 应用 Observer V2。仅支持本机浏览器；MCP Apps/游戏内新 UI 未提供。
+可选浏览器：`node ./dist/mcp-server.js --web-only` 启动独立服务；由 MCP 客户端添加 `--web` 时，页面与 20 个工具共用同一 Core（原 19 个加 fabric_recipe_workspace）。打开 stderr 的完整本机链接，或调用 modcrafting_environment_status 获取 browserUrl。可加 `--web-port=端口`，默认随机端口。默认 MCP 不开启 HTTP，不需修改打包配置；关闭页面不停止任务，关闭服务/宿主连接则停止本进程任务。资源 present 不等于 V2 已就绪，准备资源后仍需按完整产品 README 应用 Observer V2。仅支持本机浏览器；MCP Apps/游戏内新 UI 未提供。
 
 开发者在隔离 Worktree 使用 pnpm 10.34.7，依次执行：
 
@@ -108,3 +110,19 @@ GameTestSpec version=2，必须有合法 subject、setup/actions/assertions/clea
 P4 提供 Codex、Claude Code 和 Qoder CLI 的不同清单，Core bundle 与 Skills 共用。Codex CLI 原生安装/19 工具及实际工具调用已验证；Claude Code 原生安装/19 工具及本地 Provider 回放驱动的真实工具调用已验证，没有使用付费模型。Qoder CLI 已验证安装、两份 Skills 与 19 工具连接，当前隔离配置未登录，实际工具调用保留为待验收；不能把插件 validate 或连接成功记成该项完成。MCP Apps、Claude Desktop/Qoder IDE 原生插件安装和其他宿主未验收。
 
 完整跨宿主包与备用配置通过 host:stage / host:config 生成，默认不修改账户；host:smoke 仅验证配置和 SDK，不是宿主验收。详细命令见分发包根 README 和仓库 docs/host-distribution.md、docs/phase-04-distribution-report.md。实际账户安装缓存仍是 P1，没有自动升级。TRAE、WorkBuddy、DSH 未适配。
+
+
+## R3 内容参数工作台（2026-10-16）
+
+新增 `fabric_content_workspace`，当前源码共 21 个工具。`--web` 的浏览器支持物品、食物、方块、生物、工具、护甲：类型专用字段、单位/范围、资源关联、变更预览、保存、刷新与 Agent 读回。请求按 list/read → preview(expectedRevision) → save(expectedRevision, previewRevision)；新 ID 的 expectedRevision 为 null。外部修改生成物或未知 Java 只读；冲突保留草稿，不能强制覆盖。每次保存备份并保护已有入口/语言文件，Java 改动需构建和游戏重启。
+
+实体限猪/僵尸原版外观与 AI 基型；资源预览为已有 PNG 或可选私有原版纹理缓存，缺缓存显示类型示意，不是 3D。工具与护甲使用原生 1.21.4 组件；剑沿用原版挖掘规则。食物效果为表单所列固定 30 秒 I 级效果。Observer capabilityRevision 5 补充实际食物/方块/实体及服务端装备属性，旧远端 Observer 不具备这些字段。真实游戏验收覆盖六类内容，9 PASS 与 3 个预期 FAIL，另补验具体食物效果；各次清理完整。配置/安装、原生 App Server 调用与桌面聊天调用是不同证据，实际候选和宿主边界见 docs/desktop-host-quickstart.md。
+
+
+## R4 MC 界面创作（2026-10-16）
+
+新增 fabric_gui_workspace，共 22 个 MCP 工具。template 获取布局/组件默认值（不写文件），list/read 读取工程，preview(expectedRevision) 检查生成文件，再 save(expectedRevision, previewRevision) 应用。浏览器提供原生 Screen/配置页面/HUD 的结构化画布、六类组件、属性/绑定、拖动/尺寸调整、8px 吸附/对齐及窗口/GUI 缩放模拟；不接收或执行 AI HTML/脚本。
+
+生成独立客户端入口、布局资源、快捷键和原生控件；开关/滑块状态写入游戏 config 的独立 JSON，按钮仅关闭/恢复默认/递增滑块。HUD 支持文字/面板/展示槽位；展示槽位不实现容器交易/服务端同步。手写或外部修改的 Java 保持只读，保存前预览并备份；布局应用后需重建/重启。复杂任意事件、自由 HTML、文本输入/循环控件不在首轮支持范围。
+
+真实游戏验证控件、坐标和重启持久化；HUD 的绘制/显示隐藏以新鲜原生记录与截图单列，现有引擎 hud_text 仍返回 INCONCLUSIVE。原生 App Server、桌面聊天与 Qoder 登录验收继续分别记账。详情见 docs/archive/2026-10-16-mc-gui-workbench.md。

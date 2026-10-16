@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react'
 import type { CoreEnvironmentStatus, CoreRuntimeState, FabricProject, GameRuntimeStatus, JobSnapshot, BridgeResult } from '../../modcrafting-core/src/contracts.ts'
 import { action, request, state } from './client.ts'
 import { IconFolder, IconWrench, IconGamepad, IconPlay, IconSquare as IconStop } from './Icon.tsx'
+import { RecipeEditor } from './RecipeEditor.tsx'
+import { ContentEditor } from './ContentEditor.tsx'
+import { GuiEditor } from './GuiEditor.tsx'
 
 const labels: Record<string, string> = { build: '构建', minecraft: 'Minecraft', game_test: '游戏测试', running: '运行中', completed: '已完成', failed: '失败', stopped: '停止已请求', present: '文件已存在', missing: '缺失', invalid: '布局异常' }
 const sample = { version: 2, id: 'browser-health-check', featureType: 'player_interaction', subject: {}, setup: [], actions: [{ type: 'wait', ms: 250 }], assertions: [{ type: 'snapshot_value', source: 'player', pointer: '/health', equals: 20 }], cleanup: [] }
@@ -71,6 +74,7 @@ export function App() {
     setProject(value.project); sessionStorage.setItem('modcrafting-view-project', value.project.path)
     setEnvironment(await action({ operation: 'environment', projectPath: value.project.path }))
   }
+  useEffect(() => { if (path.trim()) void run('恢复工程', open) }, [])
   const connected = connection === 'Core 已连接', disabled = Boolean(pending) || !connected
   const selected = runtime.instances.find((row) => row.instanceId === instanceId)
   const runningGame = selected && runtime.jobs.find((row) => row.id === selected.jobId)?.status === 'running'
@@ -78,7 +82,7 @@ export function App() {
   return <>
     <header><div className="brand"><span className="brand-mark">M</span><div><strong>ModCrafting</strong><span>Fabric 工作台</span></div></div><span className={connected ? 'connected' : 'error'} role="status">● {connection}</span></header>
     <main>
-      <div className="intro"><div><p className="eyebrow">CORE / FABRIC 1.21.4</p><h1>从工程到游戏，查看每一步证据。</h1><p className="muted">与 Agent 共用任务和实例。关闭页面后，Core 继续执行。</p></div><a href="#jobs">查看任务 ↓</a></div>
+      <div className="intro"><div><p className="eyebrow">CREATE / FABRIC 1.21.4</p><h1>把想法变成游戏里的内容。</h1><p className="muted">与 Agent 一起设计 MC 界面、调整内容属性、编辑配方，保存工程，再进游戏验证。</p></div><a href="#jobs">构建与验收 ↓</a></div>
       {error && <div role="alert" className="message error">{error}<button onClick={() => setError('')}>收起</button></div>}
       {(pending || notice) && <div role="status" className="message">{pending ? `${pending}…` : notice}</div>}
       <section className="panel"><h2><IconFolder />工程与环境</h2>
@@ -90,13 +94,14 @@ export function App() {
         {project && <div className="project-info"><strong>{project.modId || '未识别 mod ID'}</strong><Badge value={project.valid ? 'PASS' : 'FAIL'} /><span>{project.minecraftVersion}</span><code>{project.path}</code>{project.errors.map((value) => <p className="error" key={value}>{value}</p>)}</div>}
         <div className="row"><button disabled={disabled} onClick={() => void run('检查环境', async () => { setEnvironment(await action({ operation: 'environment', projectPath: project?.path })) })}>刷新环境</button>
           <button disabled={disabled} onClick={() => void run('准备资源', async () => { const prepared = await action<{ ok: boolean }>({ operation: 'prepare' }); setNotice(prepared.ok ? '资源准备完成；启动前仍需按下方步骤应用 Observer V2。' : '资源准备未完成'); setEnvironment(await action({ operation: 'environment', projectPath: project?.path })) })}>下载知识与基础模组</button></div>
-        {environment && <>
+        {environment && <details className="environment-details"><summary>运行环境与资源</summary>
           <div className="checks"><div><span>系统 JDK 21</span><Badge value={environment.java.ok ? 'PASS' : 'FAIL'} /><small>{environment.java.version || environment.java.error}</small></div><div><span>Gradle Wrapper</span><Badge value={environment.gradleWrapper ? 'PASS' : 'FAIL'} /></div><div><span>测试桥协议</span><Badge value={game?.bridgeReady ? 'PASS' : 'INCONCLUSIVE'} /><small>{game?.bridgeReady ? 'Observer V2 已响应' : '等待游戏内实际验证'}</small></div></div>
           {environment.remediation.map((value) => <p className="error" key={value}>{value}</p>)}
           <details><summary>资源布局与数据目录</summary><code>{environment.paths.dataRoot}</code>{environment.assets.map((value) => <div className="row asset" key={value.name}><strong>{value.name}</strong><Badge value={value.status} /><code>{value.path}</code></div>)}</details>
           <details className="compat"><summary>启动前应用 Observer V2（公开资源包仍为 V1）</summary><p>资源“文件已存在”不代表 V2 兼容。下载后，将完整产品包中的 observer/modcrafting-observer.jar 覆盖到下面的独立缓存路径；再次下载资源后需重做。只保留一份同 ID Observer。</p><code>{environment.paths.assetsRoot}/base-mods/modcrafting-observer.jar</code><p>JDK 21 与工程 Wrapper 需自行准备，资源下载不会安装工具链。</p></details>
-        </>}
+        </details>}
       </section>
+      {project?.valid && <><GuiEditor key={'gui:' + project.path} projectPath={project.path} modId={project.modId!} /><ContentEditor key={'content:' + project.path} projectPath={project.path} modId={project.modId!} /><RecipeEditor key={project.path} projectPath={project.path} modId={project.modId!} /></>}
       <div className="columns">
         <section className="panel"><h2><IconWrench />构建</h2><p className="muted">通过工程 Wrapper 执行，日志保留在 Core 任务中。</p><div className="row"><label className="grow">Gradle 任务<input value={task} onChange={(event) => setTask(event.target.value)} /></label><button className="primary" disabled={disabled || !project?.valid} onClick={() => void run('启动构建', async () => { await action({ operation: 'build', projectPath: project!.path, task }) })}><IconPlay size="sm" />构建</button></div></section>
         <section className="panel"><h2><IconGamepad />Minecraft</h2><label>隔离游戏目录（可选）<input value={gameDirectory} onChange={(event) => setGameDirectory(event.target.value)} placeholder="默认：工程/run/modcrafting-fabric" /></label><div className="row"><button className="primary" disabled={disabled || !project?.valid} onClick={() => void run('启动 Minecraft', async () => { const value = await action<{ instanceId: string }>({ operation: 'run', projectPath: project!.path, gameDirectory: gameDirectory.trim() || undefined }); setInstanceId(value.instanceId) })}><IconPlay size="sm" />启动游戏</button><button disabled={disabled || !runningGame} onClick={() => void run('停止 Minecraft', async () => { await action({ operation: 'stop', jobId: selected!.jobId }) })}><IconStop size="sm" />停止游戏</button></div></section>
