@@ -1,10 +1,12 @@
 # ModCrafting 第一阶段开发执行文档：独立 MCP 底座与可信交付基线
 
+> 路径说明：本文使用 D:\src 作为示例父目录，执行时替换为实际目录；历史阶段约束与验收含义保持。
+
 > 历史 P1 任务书：下面的“待实施”和阶段限制保留编写时状态；实际结果见 [P1 报告](./phase-01-implementation-report.md)。当前阶段顺序与任务以 [转型路线](./transformation-roadmap.md) 为准。
 
 > 状态：待 Codex 实施；本文件是可执行任务书，而不是已完成记录。
 > 编写日期：2026-10-12
-> 原工作区：`D:\project_file\Full-stack\ModCrafting`；P1 实施工作区：`D:\project_file\Full-stack\ModCrafting-mcp-p1`（完成 P0 后创建）
+> 原工作区：`D:\src\ModCrafting`；P1 实施工作区：`D:\src\ModCrafting-mcp-p1`（完成 P0 后创建）
 > 阶段编号：P1 / MCP Foundation
 > 目标读者：Codex（在本仓库根目录打开后直接执行）
 > 主线：Core / MCP / Agent 扩展优先；Desktop 进入维护模式；不在本阶段开发新的游戏内 AI Mod。

@@ -5,7 +5,7 @@
 > 项目根目录的 [README.md](../README.md) 是面向用户的快速入门。
 > [AGENTS.md](../AGENTS.md) 与 [CLAUDE.md](../CLAUDE.md) 是 AI Agent 工作时的精简指引（≤150 行），仅包含项目摘要、关键约定、文档索引。
 
-**当前开发入口**：[转型路线与阶段进度](./transformation-roadmap.md)。P2/P3 已本地验收；当前 P4 [跨 Agent 分发](./host-distribution.md) 与 [实施报告](./phase-04-distribution-report.md)：Codex/Claude 调用通过，Qoder 调用待已登录环境。P5 未开始。浏览器用法见 [指南](./browser-view.md)。下列旧 phase 文档保留历史任务与验收依据，不单独决定当前优先级。
+**当前开发入口**：[转型路线与阶段进度](./transformation-roadmap.md)与[创作工作台需求](../specs/creator-workbench/requirements.md)。Core/Bench、执行型浏览器和入口/数据迁移已有本地成果；首轮[配方工坊闭环](./archive/2026-10-15-recipe-creator-workbench.md)已通过真实合成验收；R3 参数与 R4 基础 MC UI 创作已完成首轮闭环；复杂容器、3D、建筑与整合包仍待完成。真实宿主结果见[桌面接入记录](./archive/2026-10-15-real-desktop-host-integration.md)，浏览器现有用法见[指南](./browser-view.md)。旧 phase 文档保留历史结果，不单独决定当前优先级。
 
 ## 文档分类
 
@@ -84,3 +84,7 @@
 2. **分类清晰**：每个文件对应一个明确主题，避免跨文件重复
 3. **随改动同步**：每次大功能改动后，相应文档同步更新；并通过归档机制保留本次工作记录
 4. **避免过度文档化**：只在必要时新增文件，优先在现有文件内更新
+
+- [R3 内容参数与游戏验收](./archive/2026-10-16-content-parameter-workbench.md) — 六类声明式创作、21 工具、资源纹理与真实游戏正反例；R4 基础 MC UI 见[界面归档](./archive/2026-10-16-mc-gui-workbench.md)。
+
+- [浏览器 MC 贴图修复](./archive/2026-10-16-browser-minecraft-textures.md) — 素材准备、静态图解析与实际页面验收。

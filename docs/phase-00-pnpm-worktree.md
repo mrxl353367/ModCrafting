@@ -1,8 +1,10 @@
 # P0.5：pnpm 依赖迁移与 Worktree 共享 Store
 
+> 路径说明：本文使用 D:\src 作为示例父目录，执行时替换为实际目录；历史阶段约束与验收含义保持。
+
 > 状态：待 Codex 实施的独立前置任务；不代表已迁移。日期：2026-10-12。
 > 执行次序：`phase-00-git-safety.md` 的 Git 保护和 Worktree 创建 → **本文 P0.5** → `phase-01-mcp-foundation.md`。
-> 工作范围：只允许在 `D:\project_file\Full-stack\ModCrafting-mcp-p1` 的隔离分支实施；原 `ModCrafting` 主工作区不得修改。
+> 工作范围：只允许在 `D:\src\ModCrafting-mcp-p1` 的隔离分支实施；原 `ModCrafting` 主工作区不得修改。
 
 ## 目标与原则
 
@@ -20,7 +22,7 @@
 ## P0.5-01：确认安全隔离，禁止影响原主仓
 
 ```powershell
-Set-Location 'D:\project_file\Full-stack\ModCrafting-mcp-p1'
+Set-Location 'D:\src\ModCrafting-mcp-p1'
 git status --short --branch
 git worktree list
 node --version
@@ -60,7 +62,7 @@ pnpm store path
 ## P0.5-05：最低可执行验收
 
 ```powershell
-Set-Location 'D:\project_file\Full-stack\ModCrafting-mcp-p1'
+Set-Location 'D:\src\ModCrafting-mcp-p1'
 pnpm install --frozen-lockfile
 pnpm run plugin:build
 pnpm run plugin:validate

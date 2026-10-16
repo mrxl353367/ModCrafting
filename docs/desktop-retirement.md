@@ -1,5 +1,7 @@
 # Desktop 退役与保留数据
 
+2026-10-15 范围纠正：本文件已验证的是入口切换与路径/数据保留，不代表 Desktop 创作能力全部替代。用户要求保留并迁移配方、对象参数、内容预览及 MC GUI 交互；当前 Web 已补首轮配方与 R3 六类参数/纹理交互，R4 基础 MC UI 也已补齐，复杂容器与更多控件另验，完整退役条件未满足。需求与代码复用依据见[创作工作台需求](../specs/creator-workbench/requirements.md)。
+
 实现复用现有 Desktop 路径格式与 Core 工程检查；独占创建、拒绝链接等文件操作采用 [Node 22 官方 fs API](https://nodejs.org/download/release/latest-jod/docs/api/fs.html)，配置位置遵循 [Electron app.getPath](https://www.electronjs.org/docs/latest/api/app#appgetpathname)。没有新增运行依赖。
 
 P5 将新用户默认入口切换为 Core/MCP + 可选浏览器。旧 Electron 源码和开发依赖保留作兼容参考，不进入独立产品；不会卸载旧应用、清理数据、升级账户插件或自动发布。Qoder 实际调用依此前决定保留待验收，用户于 2026-10-15 明确授权开始 P5。
@@ -10,7 +12,10 @@ P5 将新用户默认入口切换为 Core/MCP + 可选浏览器。旧 Electron �
 |---|---|
 | 对话、计划、模型/密钥、代码编辑、终端 | 外部 Agent / IDE；不导入模型配置和密钥，不启动旧 Harness |
 | 工程打开、最近路径 | Core inspect / validate；迁移 CLI 导入路径清单，环境工具和浏览器可读，打开时重检；工程内容不复制 |
-| 新建 Fabric 工程 | MCP scaffold 附带固定 Wrapper，已有工程自带 Wrapper；旧七种模板表单不逐个复刻，宿主编辑源码 |
+| 新建 Fabric 工程 | MCP scaffold 附带固定 Wrapper，已有工程自带 Wrapper；模板表单的字段和纯生成逻辑需迁移到创作工作台，不能只由宿主编辑源码替代 |
+| 配方 | 首轮五种基础配方已具备拖放、预览/保存、Agent 同文件读回与真实合成；未知类型只读，详见配方归档 |
+| 对象参数、内容预览 | R3 六类声明式参数、资源纹理预览/保存/Agent 读回及实机验证完成；手写源码只读，复杂行为由宿主完成 |
+| GUI 布局交互 | R4 基础 Screen/配置页面/HUD 画布、6 类组件、预览/写回与实机交互已验；复杂容器、文本输入/循环选项未实现，详见界面归档 |
 | 工具链、运行目录 | 显式 MODCRAFTING_DATA；系统 JDK 21 + 工程 Wrapper；旧 JDK/Gradle/缓存原地保留，可自行配置 PATH / JAVA_HOME / GRADLE_USER_HOME，不自动导入或修改旧 runtime |
 | 知识与基础模组 | Core prepare / lookup / search、浏览器资源诊断；显式下载，Wiki 当前关键词搜索；旧向量模型和自定义知识/Skill 原地保留，由宿主按需读取 |
 | 构建、日志、游戏启停 | 同一 FabricRuntime 的异步 Job / 实例及浏览器操作；P2/P3 已实机验收；会话退出会结束所拥有的任务，不恢复旧任务 |
@@ -18,7 +23,7 @@ P5 将新用户默认入口切换为 Core/MCP + 可选浏览器。旧 Electron �
 | 报告、存档、聊天、checkpoint | 原路径保留，旧 Desktop 兼容入口可回看；新 UI 只显示当前 Core 任务报告，不将旧报告伪装为新验收，不导入旧聊天/checkpoint 继续执行 |
 | 安装、更新、分发 | P4 三宿主本地包 + 浏览器回退；Qoder 调用待登录环境；无自动账户升级、新增云服务或远端发布 |
 
-这是用户明确选择的职责替代，不宣称旧 Desktop 的所有表单、18 类断言或自动下载工具链已逐项复刻。MCP Apps 与新游戏 HUD 非首批退出门槛；旧源文件的物理删除及开发依赖剥离未执行。
+对话/模型等交给宿主属于职责替代；此前将创作表单和布局交互一起排除的范围现已纠正。配方、参数、MC UI 的迁移必须单独验收，不能宣称全部替代；18 类断言、自动下载工具链仍按各自支持范围记录。MCP Apps 与新游戏 HUD 不以普通连接成功代替验收；旧源文件的物理删除及开发依赖剥离未执行。
 
 ## 数据位置与迁移
 

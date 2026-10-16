@@ -1,5 +1,7 @@
 # ModCrafting 跨 Agent 本地分发
 
+真实 Codex App / 新 Qoder 桌面应用的配置入口、首次只读对话和浏览器打开方式见[桌面接入指南](./desktop-host-quickstart.md)。本页的 Qoder CLI 验收与旧 IDE 包装边界仍单独保留，不代表新桌面的实际状态。
+
 当前目标为 Windows x64 / Node 22.15+ 或 24 / Fabric 1.21.4。同一 Core/MCP bundle、两份 Skills、GPL-3.0 与第三方许可分别打包为 Codex、Claude Code、Qoder CLI 的本地插件。外部 Agent 管理模型和代码编辑；ModCrafting 不实现另一套 Agent Loop。具体宿主验证结果以 P4 报告为准，不将清单校验/SDK Smoke 解释为宿主实测。
 
 本地结果：Codex App 随附 CLI/App Server 0.162.0-alpha.17.2 与 Claude Code 2.1.206 已验证安装、19 工具连接和实际调用（Claude 使用本地回放，不消耗真实模型）；Qoder CLI 1.1.71 已验证安装、两份 Skill 与原生 19 工具连接，实际调用因独立配置未登录而待验收。用户选择先保留该项；P4 尚未全部验收。普通 MCP 成功不证明 MCP Apps 可用。全局 Codex CLI 0.150.1 仅核对版本/help，不扩大宣称。

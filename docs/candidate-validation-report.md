@@ -7,7 +7,7 @@
 ## 候选与交付
 
 - 源码提交：`74e8504e71d91b93d78c973d0d834e2a83e87b2c`，源码树 `d9a365bf153c660ab1dbe614cc1bce2d4d65b9c9`。包含此前 P0～P5 的审查后改动及本轮首次使用补齐；没有创建 tag 或推送。
-- 固化交付：`D:\project_file\Full-stack\ModCrafting-candidates\74e8504-uvkwsmac`。distribution/ 为 **54 文件**完整三宿主包，example/ 为真实模组 JAR 与 GPL 许可，evidence/ 保存构建、工具轨迹、作业结果与四份原始 V2 报告。candidate.json 记录最终 source.zip 提交、已验收代码基线及交付文件 SHA；后续结果文档和交付指南链接修正与实机基线单列。
+- 固化交付：`<本地候选根>/74e8504-uvkwsmac`。distribution/ 为 **54 文件**完整三宿主包，example/ 为真实模组 JAR 与 GPL 许可，evidence/ 保存构建、工具轨迹、作业结果与四份原始 V2 报告。candidate.json 记录最终 source.zip 提交、已验收代码基线及交付文件 SHA；后续结果文档和交付指南链接修正与实机基线单列。
 - MCP bundle：`a8a60093f26bc3b2cab3fb0adfb8280e5fde78bf626cda95c23c1b09e75668db`。工作区重新构建与独立源码构建相同；真实模组验收使用的 bundle 与最终交付相同。
 - 示例：`example/iron_ticket-0.1.0.jar`，4,889 字节，SHA-256 `d8b29575a97ce6c76131a5dd952a1ecf9837c7389bd7ae2a772f196ac1c2a6b0`。JAR 的 id/version、初始化类和物品实现字节码均已检查。
 

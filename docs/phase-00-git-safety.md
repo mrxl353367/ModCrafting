@@ -1,10 +1,12 @@
 # P0：ModCrafting 改造前 GitHub 备份与隔离工作区
 
+> 路径说明：本文使用 D:\src 作为示例父目录，执行时替换为实际目录；历史阶段约束与验收含义保持。
+
 > 日期：2026-10-12。**P0 必须先于 P1-01～P1-06 执行**。本文件提供执行步骤，不表示已经创建 Git 分支或推送 GitHub。
 
 ## 1. 仓库现状（重新执行前须复核）
 
-- 原工作区：`D:\project_file\Full-stack\ModCrafting`，本地 `main` = `b40e1fa`；现有 `origin/main` = `6e68512`，落后两个提交。
+- 原工作区：`D:\src\ModCrafting`，本地 `main` = `b40e1fa`；现有 `origin/main` = `6e68512`，落后两个提交。
 - 远端两个提交：`da47e3e`（运行时目录配置）和 `6e68512`（提供 `npm run setup:worktree`）。
 - 原工作区未跟踪：`Python/`、`docs/phase-01-mcp-foundation.md`、`failures*.txt`、`test_output*.txt`。不能删除，不能误加入 Git。
 - 备份分支只指向 **已提交的历史状态**，未跟踪文件不随分支备份；如需保全它们，须另做本地离线备份。
@@ -12,7 +14,7 @@
 ## 2. P0-1 只读检查
 
 ```powershell
-Set-Location 'D:\project_file\Full-stack\ModCrafting'
+Set-Location 'D:\src\ModCrafting'
 git status --short --branch
 git branch -vv
 git log -1 --oneline main
@@ -46,7 +48,7 @@ git ls-remote --heads origin backup/pre-mcp-p1-20261012
 ## 4. P0-3 从最新 origin/main 新建开发 Worktree
 
 ```powershell
-Set-Location 'D:\project_file\Full-stack\ModCrafting'
+Set-Location 'D:\src\ModCrafting'
 # 只更新远端引用，不合并、不重置原 main
 git fetch origin
 git log --oneline main..origin/main
@@ -73,7 +75,7 @@ git worktree list
 新的 `origin/main` 已添加 `scripts/setup-worktree.mjs`。先检查脚本的读写目标与磁盘消耗，再运行：
 
 ```powershell
-Set-Location 'D:\project_file\Full-stack\ModCrafting-mcp-p1'
+Set-Location 'D:\src\ModCrafting-mcp-p1'
 Get-Content .\scripts\setup-worktree.mjs -TotalCount 160
 # 确认脚本行为后：
 # 先依照 phase-00-pnpm-worktree.md 完成 P0.5，旧 npm bootstrap 不再直接执行
