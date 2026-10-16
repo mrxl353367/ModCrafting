@@ -1,23 +1,23 @@
 # ModCrafting Fabric MCP
 
-面向 Fabric 1.21.4 的独立 Node MCP 插件。无需 Electron；Desktop 的既有用户继续使用桌面功能。此包由 Core 与已有 MCP Server 构建，不包含 Agent Loop。
+面向 Fabric 1.21.4 的独立 Node MCP 插件，提供 22 个工具、两份 Skill 和可选浏览器创作工作台。外部 Agent 负责对话、规划与代码编辑，Core 提供工程、知识、构建和游戏验收；运行无需 Electron，不包含 Agent Loop。旧 Desktop 保留兼容源码与原数据。
 
 开发者在新工作区执行 `pnpm run plugin:build`、`pnpm run plugin:validate`、`pnpm run plugin:stage`。Stage 位于 `temp/plugin-artifacts/modcrafting-fabric/`，可整体复制；用户无需 pnpm 或仓库源码。
 
 交付目录包含 `.codex-plugin/plugin.json`、`.mcp.json`、`dist/mcp-server.js`、`skills/`、`assets/modcrafting.png`、本文、`LICENSE` 与 `THIRD_PARTY_NOTICES.txt`。GPL-3.0 原文来自 https://www.gnu.org/licenses/gpl-3.0.txt；依赖许可由构建输入对应的包提取，已有法律注释保留在 bundle 尾部。源码及重建方式见 https://github.com/newstarbar/ModCrafting，未发布的本地 Stage 不应当作正式发行版；正式分发需同时提供与产物匹配的源码。
 
-需要 Windows x64 和 Node 22/24。仅真正执行 Gradle 任务时需要 PATH 上的 JDK 21 与项目 Gradle Wrapper。初始化不下载资源。默认持久数据目录为 `%LOCALAPPDATA%\ModCrafting\fabric-plugin`；可设置绝对可写目录 `MODCRAFTING_DATA`，兼容旧 `PLUGIN_DATA` / `CODEX_PLUGIN_DATA`。缓存与安装目录分离。
+需要 Windows x64 和 Node 22.15+ 或 24。执行 Gradle/运行游戏需要 PATH 上的 JDK 21 与项目 Gradle Wrapper。初始化不下载资源。默认持久数据目录为 `%LOCALAPPDATA%\ModCrafting\fabric-plugin`；可设置绝对可写目录 `MODCRAFTING_DATA`，兼容旧 `PLUGIN_DATA` / `CODEX_PLUGIN_DATA`。缓存与安装目录分离。
 
-配方工坊提供材料搜索、3×3 拖放换位、五种原版配方、产物数量、JSON 变更预览、保存与刷新读回。文件写入 `src/main/resources/data/<namespace>/recipe/`；Web 与 Agent 共用版本检查，外部修改后拒绝覆盖并保留草稿。更新前使用 read 返回的 revision，新建时 expectedRevision 为 null；旧版本备份在数据目录 recipe-backups。未知序列化器或不支持的材料形式保持只读。当前物品采用文字图块，工程物品目录来自 items/models/item 资源，不能代替注册验证；标签成员和配方匹配需在游戏确认。MC UI、参数编辑、3D 和整合包工作流仍未交付。
+配方工坊提供材料搜索、3×3 拖放换位、五种原版配方、产物数量、JSON 变更预览、保存与刷新读回。文件写入 `src/main/resources/data/<namespace>/recipe/`；Web 与 Agent 共用版本检查，外部修改后拒绝覆盖并保留草稿。更新前使用 read 返回的 revision，新建时 expectedRevision 为 null；旧版本备份在数据目录 recipe-backups。未知序列化器或不支持的材料形式保持只读。物品显示原版/工程静态贴图；工程目录来自 items/models/item 资源，不能代替注册验证，标签成员和配方匹配需在游戏确认。六类内容参数与基础 Screen/配置页面/HUD 已交付，详见下方 R3/R4；3D、建筑生成与整合包工作流待实现。
 
 ## 构建与连接检查
 
-可选浏览器：`node ./dist/mcp-server.js --web-only` 启动独立服务；由 MCP 客户端添加 `--web` 时，页面与 20 个工具共用同一 Core（原 19 个加 fabric_recipe_workspace）。打开 stderr 的完整本机链接，或调用 modcrafting_environment_status 获取 browserUrl。可加 `--web-port=端口`，默认随机端口。默认 MCP 不开启 HTTP，不需修改打包配置；关闭页面不停止任务，关闭服务/宿主连接则停止本进程任务。资源 present 不等于 V2 已就绪，准备资源后仍需按完整产品 README 应用 Observer V2。仅支持本机浏览器；MCP Apps/游戏内新 UI 未提供。
+可选浏览器：`node ./dist/mcp-server.js --web-only` 启动独立服务；由 MCP 客户端添加 `--web` 时，页面与 22 个工具共用同一 Core，包括 fabric_recipe_workspace、fabric_content_workspace 和 fabric_gui_workspace。打开 stderr 的完整本机链接，或调用 modcrafting_environment_status 获取 browserUrl。可加 `--web-port=端口`，默认随机端口。默认 MCP 不开启 HTTP；关闭页面不停止任务，关闭服务/宿主连接则停止本进程任务。资源 present 不等于 V2 已就绪，准备资源后仍需按完整产品 README 应用 Observer V2。浏览器可生成并验证用户模组的原生 Screen/HUD；聊天内嵌 MCP Apps 与工作台本身的游戏内操作面板未实现。
 
 开发者在隔离 Worktree 使用 pnpm 10.34.7，依次执行：
 
 ```powershell
-pnpm install --frozen-lockfile
+pnpm install --frozen-lockfile --ignore-scripts
 pnpm run plugin:build
 pnpm run plugin:validate
 pnpm run plugin:stage
@@ -28,6 +28,8 @@ pnpm run plugin:test
 实测 Windows x64 的 Node 22.23.3 / 24.19.0。Smoke 使用官方 MCP Client，从仓库外目录执行 Stage，并禁止模块解析到 Stage 外；完成 initialize、初始化通知、tools/list 和 tools/call。工具数量以 tools/list 为准。`--self-test` 只检查注册，不能代替此验证。用户直接通过 `node <插件目录>/dist/mcp-server.js` 连接 stdio MCP；手动运行后等待输入是正常行为，不能用“没有打印信息”判断失败。
 
 ## Codex 安装
+
+当前候选为 R4 / 22 工具；真实配置 App Server 已读回布局，两份 Skill 可用。新版当前聊天与 Qoder 创作调用需分别复验，见仓库 docs/desktop-host-quickstart.md。下方 P1/P2/P4 的 19 工具、客户端版本和账户状态均为历史验收记录，不代表新版工具清单或当前个人配置。
 
 保留原 `.codex-plugin/plugin.json` / `.mcp.json` 格式。依据 [OpenAI 官方本地插件说明](https://developers.openai.com/plugins/build/plugins)，在选定的本地 marketplace 根目录创建 `.agents/plugins/marketplace.json`，并将整个 Stage 复制到该根目录的 `plugins/modcrafting-fabric/`。已有目录或清单应合并检查，不能覆盖个人配置。
 
@@ -91,7 +93,7 @@ GameTestSpec version=2，必须有合法 subject、setup/actions/assertions/clea
 
 支持 `inventory_contains`、`block_equals`、`entity_exists`、`snapshot_value`、`snapshot_changed`。实体查询范围为 Observer 的半径 32、最多 64 个实体；不能证明整个世界的不存在。实机实体的 `tag` 过滤为 CAPABILITY_UNAVAILABLE：客户端快照不能验证服务端命令标签，按类型查询仍支持，清理命令可使用服务端标签定位自建实体。快照指针仅访问已观察字段。HUD、command_result 和 trace 来源的通用快照断言均保守返回 CAPABILITY_UNAVAILABLE；历史 HUD 不能算新证据。缺字段返回 EVIDENCE_MISSING；非测试世界/桥缺失返回 ENVIRONMENT_UNAVAILABLE；cleanup 失败返回 CLEANUP_FAILED，撤销 PASS。
 
-此插件不等价于 Desktop 的完整验收引擎。基础回归采用 Fake Bridge/Fixture；P1 的库存三态实测保留。P2-04 在仓库外使用从源码重建的 Observer 2.0.0，在同一 MCP 会话完成冷资源准备、系统工具链构建和十例真实游戏验收，预期匹配 10/10（5 PASS、3 FAIL、2 INCONCLUSIVE）；覆盖五种支持断言的代表案例，没有证明任意模组、完整容器交互或旧 Desktop 的 18 类验收。实机细节见仓库的 `docs/phase-02-core-report.md`；实际账户安装缓存仍保留 P1，没有自动升级。
+此插件不等价于 Desktop 的完整验收引擎。基础回归采用 Fake Bridge/Fixture；P1 的库存三态实测保留。P2-04 在仓库外使用从源码重建的 Observer 2.0.0，在同一 MCP 会话完成冷资源准备、系统工具链构建和十例真实游戏验收，预期匹配 10/10（5 PASS、3 FAIL、2 INCONCLUSIVE）；覆盖五种支持断言的代表案例，没有证明任意模组、完整容器交互或旧 Desktop 的 18 类验收。实机细节见仓库的 `docs/phase-02-core-report.md`；上述 P2 验收当时未升级账户插件，当前候选与宿主边界见桌面接入指南。
 
 ## 排错与禁用
 
@@ -109,12 +111,12 @@ GameTestSpec version=2，必须有合法 subject、setup/actions/assertions/clea
 
 P4 提供 Codex、Claude Code 和 Qoder CLI 的不同清单，Core bundle 与 Skills 共用。Codex CLI 原生安装/19 工具及实际工具调用已验证；Claude Code 原生安装/19 工具及本地 Provider 回放驱动的真实工具调用已验证，没有使用付费模型。Qoder CLI 已验证安装、两份 Skills 与 19 工具连接，当前隔离配置未登录，实际工具调用保留为待验收；不能把插件 validate 或连接成功记成该项完成。MCP Apps、Claude Desktop/Qoder IDE 原生插件安装和其他宿主未验收。
 
-完整跨宿主包与备用配置通过 host:stage / host:config 生成，默认不修改账户；host:smoke 仅验证配置和 SDK，不是宿主验收。详细命令见分发包根 README 和仓库 docs/host-distribution.md、docs/phase-04-distribution-report.md。实际账户安装缓存仍是 P1，没有自动升级。TRAE、WorkBuddy、DSH 未适配。
+完整跨宿主包与备用配置通过 host:stage / host:config 生成，默认不修改账户；host:smoke 仅验证配置和 SDK，不是宿主验收。详细命令见分发包根 README 和仓库 docs/host-distribution.md、docs/phase-04-distribution-report.md。以上为 P4 历史分发验收，后续本地候选更新与桌面接入结果见 docs/desktop-host-quickstart.md。TRAE、WorkBuddy、DSH 未适配。
 
 
 ## R3 内容参数工作台（2026-10-16）
 
-新增 `fabric_content_workspace`，当前源码共 21 个工具。`--web` 的浏览器支持物品、食物、方块、生物、工具、护甲：类型专用字段、单位/范围、资源关联、变更预览、保存、刷新与 Agent 读回。请求按 list/read → preview(expectedRevision) → save(expectedRevision, previewRevision)；新 ID 的 expectedRevision 为 null。外部修改生成物或未知 Java 只读；冲突保留草稿，不能强制覆盖。每次保存备份并保护已有入口/语言文件，Java 改动需构建和游戏重启。
+R3 新增 `fabric_content_workspace`，当时共 21 个工具，当前 R4 为 22 个。`--web` 的浏览器支持物品、食物、方块、生物、工具、护甲：类型专用字段、单位/范围、资源关联、变更预览、保存、刷新与 Agent 读回。请求按 list/read → preview(expectedRevision) → save(expectedRevision, previewRevision)；新 ID 的 expectedRevision 为 null。外部修改生成物或未知 Java 只读；冲突保留草稿，不能强制覆盖。每次保存备份并保护已有入口/语言文件，Java 改动需构建和游戏重启。
 
 实体限猪/僵尸原版外观与 AI 基型；资源预览为已有 PNG 或可选私有原版纹理缓存，缺缓存显示类型示意，不是 3D。工具与护甲使用原生 1.21.4 组件；剑沿用原版挖掘规则。食物效果为表单所列固定 30 秒 I 级效果。Observer capabilityRevision 5 补充实际食物/方块/实体及服务端装备属性，旧远端 Observer 不具备这些字段。真实游戏验收覆盖六类内容，9 PASS 与 3 个预期 FAIL，另补验具体食物效果；各次清理完整。配置/安装、原生 App Server 调用与桌面聊天调用是不同证据，实际候选和宿主边界见 docs/desktop-host-quickstart.md。
 
