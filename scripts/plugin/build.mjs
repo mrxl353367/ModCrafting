@@ -17,7 +17,7 @@ if (Object.values(view.metafile.outputs).some((output) => output.imports.some((e
 const webAssets = {
   html: '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ModCrafting · Fabric 工作台</title><link rel="stylesheet" href="/view.css"></head><body><div id="root"></div><script type="module" src="/view.js"></script></body></html>',
   js: view.outputFiles[0].text,
-  css: await readFile(path.join(root, 'packages/modcrafting-view/src/view.css'), 'utf8')
+  css: (await readFile(path.join(root, 'packages/modcrafting-view/src/view.css'), 'utf8')).replace(/\r\n/g, '\n')
 }
 const bundled = await build({
   entryPoints: [path.join(plugin, 'src', 'mcp-server.ts')],
