@@ -30,6 +30,7 @@
 		"bench:fabric:live": "node --experimental-strip-types scripts/bench/run-fabric-bench-live.ts",
 		"bench:build": "node scripts/bench/build.mjs",
 		"plugin:validate": "node scripts/plugin/validate.mjs",
+		"plugin:qoder": "node scripts/plugin/stage-qoder.mjs",
 		"plugin:stage": "node scripts/plugin/stage.mjs",
 		"product:stage": "node scripts/plugin/stage-product.mjs",
 		"host:config": "node scripts/plugin/host-config.mjs",

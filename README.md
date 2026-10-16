@@ -59,6 +59,16 @@ pnpm start
 
 安装与配置见 [Codex App / Qoder 桌面接入](docs/desktop-host-quickstart.md) 和 [Codex / Claude / Qoder 分发](docs/host-distribution.md)。先提供工程路径，让 Agent 调用环境与工程检查，再按需求执行创作、构建和游戏操作。完整浏览器用法见 [工作台指南](docs/browser-view.md)。
 
+### Qoder 国际版原生插件
+
+通过「扩展 → 插件 → 添加插件 → 上传 Plugin」导入原生 ZIP，统一使用两份 Skill、`inspect` / `build` / `test` 命令及 22 工具 MCP 后端。生成 ZIP、安装、旧独立连接器切换及使用方法见 [Qoder 国际版插件手册](docs/qoder-user-guide.md)。
+
+```powershell
+pnpm run plugin:qoder -- --source "D:/ModCrafting/plugin"
+```
+
+`--source` 指向已构建且含浏览器工作台的候选插件目录。命令只创建新产物；需要复用既有数据目录时使用手册中的机器专用配置参数。
+
 ### 构建可复制的完整产品包
 
 ```powershell
@@ -87,7 +97,7 @@ node ./plugin/dist/mcp-server.js --web-only
 |---|---|
 | Codex | 真实配置的原生 App Server 已加载两份 Skill、22 工具并读回布局；既有聊天需重连后确认新版 |
 | Claude Code | 历史原生安装/工具调用已验证；新版 22 工具分发通过 SDK/配置 Smoke，不扩大为新版聊天实测 |
-| Qoder 桌面 / CLI | 桌面历史只读调用已通过；新版创作聊天待复验，隔离 CLI 登录项保留 |
+| Qoder 国际版桌面 / CLI | 原生插件已用户级安装，桌面 0.4.8 发现两份 Skill、三个命令及插件提供的 22 工具；新版模型聊天待复验，历史隔离 CLI 登录项保留 |
 | GUI / HUD | 基础 Screen、配置页面和 HUD 已实机验证；展示槽位不执行服务端容器交换，文本输入/循环控件与自由脚本未实现 |
 | 后续能力 | 聊天内嵌 MCP Apps、3D 模型编辑、游戏内建筑生成与 AI 整合包创作尚未交付 |
 

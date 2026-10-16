@@ -45,6 +45,10 @@
 - [architecture.md](./architecture.md) - `modcrafting-fabric` 插件与共享核心架构
 - [commands.md](./commands.md) - 插件构建、隔离测试、校验和本地 marketplace 使用方式
 
+### Qoder 国际版插件
+
+- [qoder-user-guide.md](./qoder-user-guide.md) — 原生插件 ZIP、Skill/命令/MCP 统一接入、浏览器创作、构建、游戏测试与排查
+
 ### AI Harness 系统
 - [harness.md](./harness.md) — Harness 模块清单、工具集、计划阶段门控、护栏机制
 - [skill.md](./skill.md) — Skill 技能模块：SKILL.md 格式、自动发现与按需加载、管理与打包
