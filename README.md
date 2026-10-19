@@ -13,7 +13,7 @@ ModCrafting 为 Qoder、Codex 等外部 Agent 提供 MCP 工具和浏览器工�
 | Agent 工具 | Fabric 工程检查/创建、Minecraft 数据和文档查询、构建、游戏控制与测试 |
 | 浏览器工作台 | 内容参数、配方、MC 界面编辑；侧栏导航、单一工作区和 session 隔离 |
 | 游戏验证 | Observer V2、独立测试实例、简体中文默认配置、首次启动准备和三态报告 |
-| 交付 | Codex Plugin、Qoder Plugin ZIP、跨宿主配置包；本地构建，不自动安装或发布 |
+| 交付 | Codex Plugin、Qoder Plugin ZIP、跨宿主配置包；`release` 分支 CI 验证，匹配版本的 `v*` tag 构建 GitHub Release |
 
 未知或外部改写的 Java 文件保持只读。测试报告区分 `PASS`、`FAIL` 和 `INCONCLUSIVE`；截图、桥接成功或构建成功不能替代玩法验收。
 
@@ -64,6 +64,7 @@ pnpm run bench:fabric
 - [架构与模块边界](docs/architecture.md)
 - [命令清单](docs/commands.md)
 - [Qoder Plugin 指南](docs/qoder-user-guide.md)
+- [GitHub Actions 与 Release 规则](RELEASE.md)
 - [浏览器工作台](docs/browser-view.md)
 - [Core 接口契约](docs/core-contracts.md)
 - [游戏测试与产品交接](docs/product-handoff.md)

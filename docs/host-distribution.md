@@ -28,4 +28,4 @@ pnpm run plugin:qoder -- --source 'D:\path\to\product\plugin'
 
 不同宿主建议使用各自的数据根目录。浏览器 URL 连接创建该 URL 的 MCP 后端；新开一个 MCP 进程不会自动共享另一个进程的 session、日志、游戏实例或报告。任务需要关闭时使用所属 session 的结束操作。
 
-完整候选只做本地构建与打包，不创建 GitHub Release、不推送 tag，也不改真实宿主配置。
+本地候选构建只写入 `temp/`，不创建 GitHub Release、不推送 tag，也不改真实宿主配置。匹配版本的 tag 推送后，GitHub Actions 会上传 Qoder 桌面 ZIP、跨宿主包、发布信息和 SHA-256 清单；发布分支与人工验收边界见 [Release 规则](../RELEASE.md)。

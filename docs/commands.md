@@ -47,10 +47,11 @@ pnpm run host:stage -- --help
 pnpm run host:config -- --help
 pnpm run host:smoke
 pnpm run docs:sync-fabric
+pnpm run release:package -- --help
 ```
 
 真实游戏验证需要 JDK 21、工程 Gradle Wrapper、Observer V2 和专用测试实例。工具连接成功、游戏启动成功和玩法断言通过是不同结果；只在日志中记录实际完成的阶段。`docs:sync-fabric` 更新仓库内 Fabric 文档快照，不会启动 Minecraft。
 
 ## 交付边界
 
-本地 Stage 与 Qoder ZIP 都只生成文件，不安装或修改宿主配置、不推送分支、不打标签，也不发布远端 Release。发布动作必须使用单独授权的工作流，当前仓库不提供自动发布脚本。
+本地 Stage 与 Qoder ZIP 只生成文件，不安装或修改宿主配置。`release:package` 从完整候选目录生成版本化 ZIP 和校验和，但不会推送、打标签或发布。将 `vMAJOR.MINOR.PATCH` tag 推送到 GitHub 后，Actions 会验证 tag 与 `package.json` 版本及 `release` 分支归属，通过构建与打包后创建 GitHub Release；详见 [Release 规则](../RELEASE.md)。

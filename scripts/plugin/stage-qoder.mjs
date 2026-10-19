@@ -78,12 +78,16 @@ export async function stageQoder({ source, outputRoot = path.join(root, 'temp/qo
     machineSpecific: Boolean(dataRoot || node || gradleHome), files: fingerprints
   }, null, 2) + '\n')
   const zip = path.join(directory, `${name}-qoder.zip`)
-  // .NET Framework CreateFromDirectory can emit backslashes, breaking cross-platform ZIP import.
-  // Use standard forward-slash entry names explicitly, including hidden manifest directories.
+  createPortableZip(plugin, zip)
+  return { directory, plugin, zip, version: manifest.version, coreBundleSha256: sha(bundle), machineSpecific: Boolean(dataRoot || node || gradleHome) }
+}
+
+export function createPortableZip(source, target) {
+  if (process.platform !== 'win32') throw Error('Portable ZIP creation currently requires Windows PowerShell')
+  source = path.resolve(source); target = path.resolve(target)
   execFileSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command',
     "$ErrorActionPreference = 'Stop'; Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem; $archive = [System.IO.Compression.ZipFile]::Open($env:MODCRAFTING_ZIP_TARGET, [System.IO.Compression.ZipArchiveMode]::Create); try { Get-ChildItem -LiteralPath $env:MODCRAFTING_ZIP_SOURCE -Recurse -File -Force | ForEach-Object { $relative = $_.FullName.Substring($env:MODCRAFTING_ZIP_SOURCE.Length + 1).Replace('\\', '/'); [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, $_.FullName, $relative, [System.IO.Compression.CompressionLevel]::Optimal) | Out-Null } } finally { $archive.Dispose() }"],
-  { env: { ...process.env, MODCRAFTING_ZIP_SOURCE: plugin, MODCRAFTING_ZIP_TARGET: zip }, windowsHide: true, stdio: 'pipe' })
-  return { directory, plugin, zip, version: manifest.version, coreBundleSha256: sha(bundle), machineSpecific: Boolean(dataRoot || node || gradleHome) }
+  { env: { ...process.env, MODCRAFTING_ZIP_SOURCE: source, MODCRAFTING_ZIP_TARGET: target }, windowsHide: true, stdio: 'pipe' })
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

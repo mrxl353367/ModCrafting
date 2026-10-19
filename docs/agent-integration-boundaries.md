@@ -10,4 +10,4 @@ ModCrafting 不运行自己的模型或聊天循环。Qoder、Codex 等宿主负
 
 验收记录必须分开说明：包结构、MCP 初始化/工具调用、浏览器连接、实际游戏启动、玩法断言和宿主真实对话。离线测试和 SDK Smoke 不能代替登录后的 Qoder 新聊天实测。
 
-当前版本没有 Electron 主程序、内置 Agent Loop 或自动远端发布链路。历史 Desktop 代码保留在旧 `main` 分支，不应复制回 `release`。
+当前版本没有 Electron 主程序或内置 Agent Loop。历史 Desktop 代码保留在旧 `main` 分支，不应复制回 `release`。远端发布只由 `release` 线上的版本 tag 工作流创建，规则见仓库根目录 `RELEASE.md`。

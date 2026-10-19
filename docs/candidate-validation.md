@@ -18,6 +18,8 @@
 | 空目录首次启动与真实游戏 | 尚未在该发布候选上重跑；当前不宣称 Minecraft 验收通过 |
 | Qoder 新聊天的真实模型行为 | 待已登录的 Qoder 桌面宿主复验 |
 
+GitHub Actions 的静态检查与 tag Release 构建规则见仓库根目录 [RELEASE.md](../RELEASE.md)。Actions 可以证明代码检查、候选构建和 ZIP 结构通过，不会自动完成表中的真实游戏或 Qoder 登录聊天验收。
+
 本次候选 bundle SHA-256：`a31d313f081fca99903c8e0599745983c82b6dbc9ab87083ecde487e687a5c83`。Qoder ZIP 和候选目录保存在本地 `temp/`，不提交到仓库。
 
 ## 发布候选门槛

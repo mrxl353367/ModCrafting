@@ -1,0 +1,86 @@
+name: ModCrafting Fabric Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    uses: ./.github/workflows/plugin.yml
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: validate
+    runs-on: windows-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Verify version tag belongs to the release branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module -e 'import fs from "node:fs"; const version = JSON.parse(fs.readFileSync("package.json", "utf8")).version; if (process.env.RELEASE_TAG !== `v${version}`) throw new Error(`Tag ${process.env.RELEASE_TAG} must match package.json version v${version}`)'
+          git fetch --no-tags origin +refs/heads/release:refs/remotes/origin/release
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/release || { echo 'Release tags must point to a commit on the release branch.' >&2; exit 1; }
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.34.7
+          run_install: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: pnpm
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: gradle
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Build complete Windows candidate with Observer V2
+        run: pnpm run candidate:build
+      - name: Package versioned release assets
+        id: package
+        shell: pwsh
+        run: |
+          $candidateFiles = @(Get-ChildItem -Path 'temp/candidate-artifacts/run-*/candidate.json' -File)
+          if ($candidateFiles.Count -ne 1) { throw "Expected exactly one candidate receipt, found $($candidateFiles.Count)." }
+          $result = node scripts/release/package-release.mjs --candidate-json "$($candidateFiles[0].FullName)" --output-root "$env:RUNNER_TEMP\modcrafting-release" --tag "$env:RELEASE_TAG" | ConvertFrom-Json
+          if (-not $result.ok) { throw 'Release package creation did not return success.' }
+          "directory=$($result.directory)" >> $env:GITHUB_OUTPUT
+          "notes=$($result.notesFile)" >> $env:GITHUB_OUTPUT
+          "prerelease=$($result.prerelease.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+      - name: Publish stable GitHub Release
+        if: steps.package.outputs.prerelease != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_DIRECTORY: ${{ steps.package.outputs.directory }}
+          RELEASE_NOTES: ${{ steps.package.outputs.notes }}
+        shell: pwsh
+        run: |
+          $assets = @(Get-ChildItem -LiteralPath $env:RELEASE_DIRECTORY -File | Where-Object Name -ne 'release-notes.md' | ForEach-Object FullName)
+          if ($assets.Count -lt 4) { throw 'Expected Qoder, multi-host, release-info and SHA256 assets.' }
+          gh release create "$env:RELEASE_TAG" @assets --verify-tag --latest --title "ModCrafting Fabric $env:RELEASE_TAG" --notes-file $env:RELEASE_NOTES
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation failed.' }
+      - name: Publish prerelease GitHub Release
+        if: steps.package.outputs.prerelease == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_DIRECTORY: ${{ steps.package.outputs.directory }}
+          RELEASE_NOTES: ${{ steps.package.outputs.notes }}
+        shell: pwsh
+        run: |
+          $assets = @(Get-ChildItem -LiteralPath $env:RELEASE_DIRECTORY -File | Where-Object Name -ne 'release-notes.md' | ForEach-Object FullName)
+          if ($assets.Count -lt 4) { throw 'Expected Qoder, multi-host, release-info and SHA256 assets.' }
+          gh release create "$env:RELEASE_TAG" @assets --verify-tag --prerelease --latest=false --title "ModCrafting Fabric $env:RELEASE_TAG" --notes-file $env:RELEASE_NOTES
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub prerelease creation failed.' }

@@ -1,5 +1,7 @@
 # 归档索引
 
+- [2026-10-19] [Fabric Plugin GitHub Actions 与 Release 规则](./2026-10-19-plugin-github-release.md) — 将 CI 改为当前插件与工作台验证；按版本 tag 构建 Observer V2、Qoder 桌面 ZIP 和跨宿主发布包，显式校验分支/版本并保留旧 Desktop Release 历史。
+
 - [2026-10-18] [测试实例准备、任务会话隔离与工作台重排](./2026-10-18-test-session-workbench.md) — session 配置和归属、真实首次启动自动进专用世界、Agent 推荐的单工作区及窄屏导航；插件 114/114 回归与首次启动真实玩法验收。触发：运行时、Agent 行为及工作台流程大改自动归档。
 
 - [2026-10-18] [Qoder 实测问题的整链修复](./2026-10-18-qoder-experience-repair.md) — 配套桥接组件随包、Java/缓存一致性、按需资源、浏览器工程定位与通俗引导；113 项回归及真实游戏 2 正例/2 反例匹配。触发：复杂修复与交付流程调整自动归档。
