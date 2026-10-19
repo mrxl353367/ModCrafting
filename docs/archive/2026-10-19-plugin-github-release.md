@@ -14,4 +14,4 @@
 
 ## 验证
 
-使用已有本地完整候选包验证 release packager，确认 Qoder ZIP 与跨宿主 ZIP 可生成、隐藏插件 manifest 保留、校验和可重算，且版本不匹配会拒绝打包。类型检查通过；插件回归 107/107；MCP Smoke 发现 26 个工具；Fabric-Bench fixture 21/21 符合预期（5 PASS、5 FAIL、11 INCONCLUSIVE）；插件构建、manifest 校验、白名单 Stage 和 workflow YAML 解析通过。真实 GitHub Actions 云端运行、实际 tag 发布、Qoder 登录聊天及 Minecraft 玩法不在本次本地验证范围。
+使用已有本地完整候选包验证 release packager，确认 Qoder ZIP 与跨宿主 ZIP 可生成、隐藏插件 manifest 保留、校验和可重算，且版本不匹配会拒绝打包。类型检查通过；插件回归 107/107；MCP Smoke 发现 26 个工具；Fabric-Bench fixture 21/21 符合预期（5 PASS、5 FAIL、11 INCONCLUSIVE）；插件构建、manifest 校验、白名单 Stage 和 workflow YAML 解析通过。GitHub Actions CI 在提交 `8542c67` 的云端运行 [39216675522](https://github.com/newstarbar/ModCrafting/actions/runs/39216675522) 全部通过。Release 工作流已由 GitHub 识别，但本次未推送 tag，因此没有创建 Release；真实 Qoder 登录聊天及 Minecraft 玩法也未在本次验收。
