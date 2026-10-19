@@ -3,7 +3,7 @@ import { fixtureObserver } from './fixtures/observer.ts'
 import test from 'node:test'
 import { spawn, spawnSync } from 'node:child_process'
 import { createServer } from 'node:http'
-import { mkdtemp, mkdir, readFile, writeFile, symlink, readdir } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, writeFile, symlink, readdir, realpath } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -76,7 +76,7 @@ test('Bench isolates project inputs while leaving save copying to the product ru
   const first = await prepareBenchRun(project, path.join(directory, 'results'), world)
   const second = await prepareBenchRun(project, path.join(directory, 'results'), world)
   assert.notEqual(first.directory, second.directory)
-  assert.equal(first.worldInput, world)
+  assert.equal(first.worldInput, await realpath(world))
   assert.equal(existsSync(path.join(first.directory, 'game')), false, 'the harness must not prepare a game directory or copy the source world')
   assert.deepEqual((await readdir(first.projectPath)).sort(), ['gradle.properties', 'gradlew.bat', 'src'])
   await writeFile(path.join(first.projectPath, 'gradle.properties'), 'fixture changed')
