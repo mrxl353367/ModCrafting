@@ -31,13 +31,17 @@ function execCapture(command: string, args: string[], cwd?: string, timeoutMs = 
 }
 
 export class SystemToolchainProvider {
+  private readonly dataRoot?: string
+  constructor(dataRoot?: string) { this.dataRoot = dataRoot }
   async status(projectPath?: string): Promise<EnvironmentStatus> {
-    const java = await execCapture('java', ['-version'], undefined, 3000)
+    const executable = process.env.JAVA_HOME ? path.join(process.env.JAVA_HOME, 'bin', process.platform === 'win32' ? 'java.exe' : 'java') : 'java'
+    const java = await execCapture(executable, ['-XshowSettings:properties', '-version'], undefined, 3000)
     const match = java.output.match(/version\s+"([^"]+)"/)
-    const javaOk = java.code === 0 && Boolean(match?.[1]?.startsWith('21.'))
+    const javaHome = java.output.match(/^\s*java.home\s*=\s*(.+)$/m)?.[1]?.trim()
+    const javaOk = java.code === 0 && Boolean(match?.[1]?.startsWith('21.')) && Boolean(javaHome && existsSync(path.join(javaHome, 'bin', process.platform === 'win32' ? 'javac.exe' : 'javac')))
     const project = projectPath ? inspectFabricProject(projectPath) : undefined
     const wrapper = Boolean(project?.wrapperPath)
-    return { ok: javaOk && (!projectPath || wrapper), platform: process.platform, node: process.version, java: { ok: javaOk, version: match?.[1], error: javaOk ? undefined : 'JDK 21 is required on PATH' }, gradleWrapper: wrapper, target: FABRIC_TARGET, remediation: [ ...(javaOk ? [] : ['Install a JDK 21 and make java available on PATH.']), ...(projectPath && !wrapper ? ['Use a Fabric project that contains gradlew.bat.'] : []) ] }
+    return { ok: javaOk && (!projectPath || wrapper), platform: process.platform, node: process.version, java: { ok: javaOk, version: match?.[1], path: javaHome, error: javaOk ? undefined : '需要 JDK 21（含编译器）。请检查 JAVA_HOME；未设置时使用 PATH 中的 Java。' }, gradleWrapper: wrapper, target: FABRIC_TARGET, remediation: [ ...(javaOk ? [] : ['安装或选择 JDK 21，然后重新连接插件。']), ...(projectPath && !wrapper ? ['当前文件夹还不是完整模组工程；新建工程或选择已有工程。'] : []) ], storage: { gradleUserHome: process.env.GRADLE_USER_HOME || (this.dataRoot ? path.join(this.dataRoot, 'cache', 'gradle') : undefined), temporaryDirectory: this.dataRoot ? path.join(this.dataRoot, 'cache', 'tmp') : undefined } }
   }
   async startGradle(projectPath: string, task: string, events?: RuntimeEvents, extraArgs: string[] = []): Promise<ChildProcess> {
     const project = inspectFabricProject(projectPath)
@@ -45,7 +49,9 @@ export class SystemToolchainProvider {
     const status = await this.status(projectPath)
     if (!status.java.ok) throw Object.assign(new Error(status.java.error), { code: 'ENVIRONMENT_UNAVAILABLE' })
     if (!/^[A-Za-z][A-Za-z0-9:.-]*$/.test(task) || extraArgs.some((value) => /[%!&|<>^\r\n]/.test(value))) throw Object.assign(new Error('Unsafe Gradle task arguments'), { code: 'INVALID_ARGUMENT' })
-    const child = spawn(process.platform === 'win32' ? 'cmd.exe' : project.wrapperPath, process.platform === 'win32' ? ['/d', '/s', '/c', '.\\gradlew.bat', task, '--no-daemon', ...extraArgs] : [task, '--no-daemon', ...extraArgs], { cwd: project.path, windowsHide: true, shell: false, env: { ...process.env, JAVA_TOOL_OPTIONS: process.env.JAVA_TOOL_OPTIONS || '' } })
+    const storage = status.storage
+    for (const directory of [storage?.gradleUserHome, storage?.temporaryDirectory]) if (directory) mkdirSync(directory, { recursive: true })
+    const child = spawn(process.platform === 'win32' ? 'cmd.exe' : project.wrapperPath, process.platform === 'win32' ? ['/d', '/v:off', '/s', '/c', '.\\gradlew.bat', task, '--no-daemon', ...extraArgs] : [task, '--no-daemon', ...extraArgs], { cwd: project.path, windowsHide: true, shell: false, env: { ...process.env, JAVA_HOME: status.java.path, JAVA_TOOL_OPTIONS: process.env.JAVA_TOOL_OPTIONS || '', ...(storage?.gradleUserHome ? { GRADLE_USER_HOME: storage.gradleUserHome } : {}), ...(storage?.temporaryDirectory ? { TEMP: storage.temporaryDirectory, TMP: storage.temporaryDirectory } : {}) } })
     child.stdout.on('data', (value) => events?.onLog?.('gradle', String(value)))
     child.stderr.on('data', (value) => events?.onLog?.('gradle', String(value)))
     return child
@@ -122,10 +128,30 @@ async function extractZip(archive: string, destination: string): Promise<void> {
   renameSync(staging, destination)
 }
 async function githubRelease(repo: string, prefix?: string): Promise<Record<string, unknown>> { const response = await fetch(`https://api.github.com/repos/${repo}/releases`, { headers: { accept: 'application/vnd.github+json', 'user-agent': 'ModCrafting Fabric plugin' } }); if (!response.ok) throw new Error(`GitHub releases API: HTTP ${response.status}`); const releases = await response.json() as Record<string, unknown>[]; const release = releases.find((item) => !prefix || String(item.tag_name).startsWith(prefix)); if (!release) throw new Error(`no release matching ${prefix || 'latest'}`); return release }
-export async function prepareAssets(paths: RuntimePaths): Promise<AssetResult[]> {
+export type DownloadableAsset = 'minecraft-data' | 'mc-wiki-zh' | 'mc-wiki-zh-index' | 'agent-knowledge'
+export async function prepareAssets(paths: RuntimePaths, names?: DownloadableAsset[]): Promise<AssetResult[]> {
   ensureRuntimePaths(paths); const results: AssetResult[] = []
-  const plans = [{ repo: 'newstarbar/ModCrafting-knowledge-base', prefix: `knowledge-${FABRIC_TARGET.minecraft}-`, names: ['minecraft-data.zip', 'mc-wiki-zh.zip', 'mc-wiki-zh-index.zip'], kind: 'knowledge' }, { repo: 'newstarbar/ModCrafting', names: ['base-mods.zip', 'agent-knowledge.zip'], kind: 'assets' }]
-  for (const plan of plans) try { const release = await githubRelease(plan.repo, plan.prefix); const assets = Array.isArray(release.assets) ? release.assets as Record<string, unknown>[] : []; for (const name of plan.names) { const asset = assets.find((item) => item.name === name); if (!asset || typeof asset.browser_download_url !== 'string') { results.push({ name, ok: false, error: 'release asset missing' }); continue }; const archive = path.join(paths.dataRoot, 'downloads', name); const destination = path.join(plan.kind === 'knowledge' ? paths.knowledgeRoot : paths.assetsRoot, name.replace(/\.zip$/i, '')); try { await download(proxy(asset.browser_download_url), archive) } catch { await download(asset.browser_download_url, archive) }; await extractZip(archive, destination); const nested = path.join(destination, destination.endsWith('base-mods') ? '_base_mods' : path.basename(destination)); if (existsSync(nested)) { for (const entry of readdirSync(nested)) renameSync(path.join(nested, entry), path.join(destination, entry)); await rm(nested, { recursive: true, force: true }) }; results.push({ name, ok: true, path: destination }) } } catch (error) { results.push({ name: plan.repo, ok: false, error: String(error) }) }
+  const plans = [{ repo: 'newstarbar/ModCrafting-knowledge-base', prefix: `knowledge-${FABRIC_TARGET.minecraft}-`, names: ['minecraft-data.zip', 'mc-wiki-zh.zip', 'mc-wiki-zh-index.zip'], kind: 'knowledge' }, { repo: 'newstarbar/ModCrafting', names: ['agent-knowledge.zip'], kind: 'assets' }]
+  for (const plan of plans) {
+    const selected = plan.names.filter(name => !names || names.includes(name.replace(/\.zip$/, '') as DownloadableAsset))
+    if (!selected.length) continue
+    let assets: Record<string, unknown>[]
+    try { const release = await githubRelease(plan.repo, plan.prefix); assets = Array.isArray(release.assets) ? release.assets as Record<string, unknown>[] : [] }
+    catch (error) { for (const name of selected) results.push({ name, ok: false, error: String(error) }); continue }
+    for (const name of selected) {
+      try {
+        const asset = assets.find(item => item.name === name)
+        if (typeof asset?.browser_download_url !== 'string') throw Error('release asset missing')
+        const archive = path.join(paths.dataRoot, 'downloads', name)
+        const destination = path.join(plan.kind === 'knowledge' ? paths.knowledgeRoot : paths.assetsRoot, name.replace(/\.zip$/i, ''))
+        try { await download(proxy(asset.browser_download_url), archive) } catch { await download(asset.browser_download_url, archive) }
+        await extractZip(archive, destination)
+        const nested = path.join(destination, path.basename(destination))
+        if (existsSync(nested)) { for (const entry of readdirSync(nested)) renameSync(path.join(nested, entry), path.join(destination, entry)); await rm(nested, { recursive: true, force: true }) }
+        results.push({ name, ok: true, path: destination })
+      } catch (error) { results.push({ name, ok: false, error: String(error) }) }
+    }
+  }
   return results
 }
 
@@ -137,7 +163,7 @@ export function searchFabricDocs(paths: RuntimePaths, query: string, limit = 8):
 export function searchWiki(paths: RuntimePaths, query: string, limit = 8): Record<string, unknown> { const file = path.join(paths.knowledgeRoot, 'mc-wiki-zh-index', 'chunks.json'); if (!existsSync(file)) return { ok: false, error: 'wiki index unavailable; run modcrafting_prepare_assets' }; const needle = query.toLowerCase(); const chunks = JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>[]; const hits = chunks.filter((item) => `${item.title || ''}\n${item.text || ''}`.toLowerCase().includes(needle)).slice(0, limit).map((item) => ({ title: item.title, category: item.category, standardId: item.standardId, snippet: String(item.text || '').slice(0, 700) })); return { ok: true, query, hits } }
 
 interface Job {
-  id: string; kind: string; status: 'running' | 'completed' | 'failed' | 'stopped'; startedAt: string; finishedAt?: string
+  id: string; kind: string; sessionId?: string; status: 'running' | 'completed' | 'failed' | 'stopped'; startedAt: string; finishedAt?: string
   output: string[]; child?: ChildProcess; result?: Record<string, unknown>; error?: string
 }
 function stopOwnedChild(child: ChildProcess): void {
@@ -152,25 +178,26 @@ function stopOwnedChild(child: ChildProcess): void {
 export class JobManager {
   private jobs = new Map<string, Job>()
   private sequence = 0
-  start(kind: string, work: (job: { output: string[]; setChild: (child: ChildProcess) => void; cancelled: () => boolean }) => Promise<Record<string, unknown>>): string {
+  start(kind: string, work: (job: { output: string[]; setChild: (child: ChildProcess) => void; cancelled: () => boolean }) => Promise<Record<string, unknown>>, sessionId?: string): string {
     const id = `mc_${kind}_${Date.now().toString(36)}_${++this.sequence}`
-    const job: Job = { id, kind, status: 'running', startedAt: new Date().toISOString(), output: [] }
+    const job: Job = { id, kind, sessionId, status: 'running', startedAt: new Date().toISOString(), output: [] }
     this.jobs.set(id, job)
     void work({ output: job.output, setChild: (child) => { job.child = child; if (job.status === 'stopped') stopOwnedChild(child) }, cancelled: () => job.status === 'stopped' })
       .then((result) => { job.result = result; if (job.status !== 'stopped') job.status = 'completed'; job.finishedAt = new Date().toISOString() })
       .catch((error) => { if (job.status !== 'stopped') job.status = 'failed'; job.error = String(error); Object.assign(job, { code: typeof error?.code === 'string' ? error.code : 'JOB_FAILED' }); job.finishedAt = new Date().toISOString() })
     return id
   }
-  status(id: string): Record<string, unknown> {
+  status(id: string, sessionId?: string): Record<string, unknown> {
     const job = this.jobs.get(id)
     if (!job) return { ok: false, code: 'JOB_NOT_FOUND', error: 'job not found' }
+    if (sessionId && job.sessionId !== sessionId) return { ok: false, code: 'JOB_NOT_OWNED', error: 'job belongs to another session' }
     const { child, ...state } = job
-    return { ...state, output: job.output.slice(-300), pid: child?.pid }
+    return { ...structuredClone(state), output: job.output.slice(-300), pid: child?.pid }
   }
-  stop(id: string): Record<string, unknown> { const job = this.jobs.get(id); if (!job) return { ok: false, code: 'JOB_NOT_FOUND', error: 'job not found' }; if (job.status === 'running') { if (job.child) stopOwnedChild(job.child); job.status = 'stopped'; job.finishedAt = new Date().toISOString() }; return { ok: true, id } }
-  list(): Record<string, unknown>[] { return [...this.jobs.keys()].map((id) => this.status(id)) }
+  stop(id: string, sessionId?: string): Record<string, unknown> { const job = this.jobs.get(id); if (!job) return { ok: false, code: 'JOB_NOT_FOUND', error: 'job not found' }; if (sessionId && job.sessionId !== sessionId) return { ok: false, code: 'JOB_NOT_OWNED', error: 'job belongs to another session' }; if (job.status === 'running') { if (job.child) stopOwnedChild(job.child); job.status = 'stopped'; job.finishedAt = new Date().toISOString() }; return { ok: true, id } }
+  list(sessionId?: string): Record<string, unknown>[] { return [...this.jobs.values()].filter((job) => !sessionId || job.sessionId === sessionId).map((job) => this.status(job.id, sessionId)) }
   stopAll(): void { for (const id of this.jobs.keys()) this.stop(id) }
 }
 
-export async function writeGameTestReport(paths: RuntimePaths, id: string, payload: Record<string, unknown>): Promise<string> { ensureRuntimePaths(paths); const target = path.join(paths.reportsRoot, `${id}.json`); await writeFile(target, JSON.stringify(payload, null, 2), 'utf8'); return target }
+export async function writeGameTestReport(paths: RuntimePaths, id: string, payload: Record<string, unknown>, sessionId?: string): Promise<string> { ensureRuntimePaths(paths); const root = sessionId ? path.join(paths.reportsRoot, sessionId) : paths.reportsRoot; await mkdir(root, { recursive: true }); const target = path.join(root, `${id}.json`); await writeFile(target, JSON.stringify(payload, null, 2), 'utf8'); return target }
 export function testVerdict(rows: Array<{ passed: boolean; unavailable?: boolean }>, visualOnly = false): GameTestVerdict { return acceptanceVerdict(rows, { visualOnly }) }

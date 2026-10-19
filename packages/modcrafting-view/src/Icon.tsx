@@ -1,4 +1,4 @@
-// Migrated pure SVG components from the existing renderer Icon.tsx. No Desktop bridge.
+// Inline SVG icons used by the standalone browser workbench.
 import React from 'react'
 
 export interface IconProps extends React.SVGAttributes<SVGElement> {

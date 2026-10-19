@@ -20,4 +20,4 @@
 
 源码提交 `74e8504e71d91b93d78c973d0d834e2a83e87b2c`。Git 导出目录使用 pnpm Store 安装独立 node_modules，下载 0 包；类型、82 项回归、完整 Observer 源码构建及协议验证通过。Node22/24 的三宿主 SDK/config 验证仍与原生账户验收分开。
 
-实机 2 PASS / 2 FAIL 加缺失实例 INCONCLUSIVE 均符合预期，四次清理完整，导出真实 JAR。完整三宿主包 54 文件，源码、样例和证据固化到 ModCrafting-candidates/74e8504-uvkwsmac；完整位置、SHA、失败目录和限制见 [验收报告](../candidate-validation-report.md)。原 main/9 项用户未跟踪文件保持，Qoder 原生调用继续待验收，无推送或发布。
+实机 2 PASS / 2 FAIL 加缺失实例 INCONCLUSIVE 均符合预期，四次清理完整，导出真实 JAR。完整三宿主包 54 文件，源码、样例和证据固化到 ModCrafting-candidates/74e8504-uvkwsmac；完整位置、SHA、失败目录和限制见 [历史验收报告](https://github.com/newstarbar/ModCrafting/blob/main/docs/candidate-validation-report.md)。原 main/9 项用户未跟踪文件保持，Qoder 原生调用继续待验收，无推送或发布。

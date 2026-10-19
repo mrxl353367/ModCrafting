@@ -39,7 +39,7 @@ export interface GameTestSpec {
 }
 
 export function isAllowedBridgeApiPath(apiPath: string): boolean {
-  return /^\/v[12]\/(capabilities|command|snapshot|query|inspect|screen|inventory|world|entity|chat|input|screenshot)(?:[/?]|$)/.test(apiPath)
+  return /^\/v[12]\/(capabilities|command|snapshot|query|inspect|screen|inventory|world|entity|chat|input|screenshot|test-preparation)(?:[/?]|$)/.test(apiPath)
 }
 
 export function pointerValue(value: unknown, pointer: string): unknown {
@@ -72,7 +72,7 @@ const assertionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('hud_text'), text, match: z.enum(['exact', 'contains']).optional() }).strict(),
   z.object({ type: z.literal('command_result'), command: text, minResult: z.number().int().min(0).optional() }).strict()
 ])
-const gameTestSchema = z.object({
+export const gameTestSpecSchema = z.object({
   version: z.literal(2),
   id: z.string().regex(/^[A-Za-z0-9_-][A-Za-z0-9_.-]{0,127}$/),
   featureType: z.enum(['new_item', 'new_block', 'new_recipe', 'entity_behavior', 'player_interaction', 'hud_gui']),
@@ -81,7 +81,38 @@ const gameTestSchema = z.object({
 }).strict()
 
 export function validateGameTestSpec(value: unknown): { ok: true; spec: GameTestSpec } | { ok: false; code: 'INVALID_SPEC'; error: string } {
-  const parsed = gameTestSchema.safeParse(value)
+  const parsed = gameTestSpecSchema.safeParse(value)
   if (!parsed.success) return { ok: false, code: 'INVALID_SPEC', error: parsed.error.issues.map((issue) => `${issue.path.join('.') || 'spec'}: ${issue.message}`).join('; ') }
   return { ok: true, spec: parsed.data as GameTestSpec }
+}
+
+export function gameTestTemplate(featureType: GameFeatureType = 'new_item'): GameTestSpec {
+  return {
+    version: 2,
+    id: 'my_test',
+    featureType,
+    subject: {},
+    setup: [],
+    actions: [{ type: 'wait', ms: 250, label: '等待游戏状态稳定' }],
+    assertions: [{ type: 'snapshot_value', source: 'screen', pointer: '/inWorld', equals: true }],
+    cleanup: []
+  }
+}
+
+export const testProfileSchema = z.object({
+  version: z.literal(1),
+  language: z.enum(['zh_cn', 'en_us']),
+  window: z.object({ width: z.number().int().min(800).max(3840), height: z.number().int().min(600).max(2160) }).strict(),
+  renderDistance: z.number().int().min(2).max(32),
+  maxFps: z.number().int().min(30).max(240),
+  volumePercent: z.number().int().min(0).max(100),
+  map: z.object({ source: z.enum(['generated', 'save_copy']), terrain: z.enum(['flat', 'normal']), seed: z.string().max(80), sourcePath: z.string().min(1).optional() }).strict().refine((value) => value.source !== 'save_copy' || Boolean(value.sourcePath), 'save_copy requires sourcePath'),
+  gameMode: z.enum(['creative', 'survival', 'adventure']),
+  difficulty: z.enum(['peaceful', 'easy', 'normal', 'hard']),
+  allowCommands: z.boolean()
+}).strict()
+export type TestProfile = z.infer<typeof testProfileSchema>
+export const DEFAULT_TEST_PROFILE: TestProfile = {
+  version: 1, language: 'zh_cn', window: { width: 1280, height: 720 }, renderDistance: 8, maxFps: 60, volumePercent: 30,
+  map: { source: 'generated', terrain: 'flat', seed: '0' }, gameMode: 'creative', difficulty: 'peaceful', allowCommands: true
 }

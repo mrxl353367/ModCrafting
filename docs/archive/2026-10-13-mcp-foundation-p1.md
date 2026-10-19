@@ -27,7 +27,7 @@ Windows Wrapper 复用现有 cmd 启动方向；停止只针对插件拥有的 P
 
 Codex CLI 0.162.0-alpha.17.2 的本地安装与安装缓存入口协议 Smoke 通过，仅使用测试专有配置。完整 build 通过；全仓类型检查仍有相同 23 条错误，Harness 800 条中 779 通过/21 既存失败，新增失败 0。
 
-真实 MC/Observer、Gradle 编译、资源首次下载、桌面安装界面和远端 Actions 未执行，不将夹具 PASS 宣传为游戏能力验证。原 main 与 9 个未跟踪文件 Hash 不变，无提交、推送或发布。明细与日志位置见 [P1 实施报告](../phase-01-implementation-report.md)。
+真实 MC/Observer、Gradle 编译、资源首次下载、桌面安装界面和远端 Actions 未执行，不将夹具 PASS 宣传为游戏能力验证。原 main 与 9 个未跟踪文件 Hash 不变，无提交、推送或发布。明细与日志位置见 [P1 实施报告](https://github.com/newstarbar/ModCrafting/blob/main/docs/phase-01-implementation-report.md)。
 
 ## 可复用经验
 

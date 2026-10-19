@@ -5,13 +5,17 @@ description: Develop, inspect, scaffold, build, and diagnose Fabric 1.21.4 mods 
 
 Use this skill for a Fabric 1.21.4 mod project on Windows.
 
+For all user-facing guidance, follow modcrafting-start: explain outcomes in the user's language, keep tool names and protocol details internal, and continue the requested work. For onboarding or visual creation, call modcrafting_open_workbench with the current project (content/recipe/gui as appropriate); merely returning an environment browserUrl does not open a browser. Never claim it opened unless the opener reports success, and even then say the system was asked to open it.
+
 1. Start with `modcrafting_environment_status` and `fabric_project_inspect`.
 2. Before registering a block, item, entity, enchantment, or recipe, call `minecraft_data_lookup` for every vanilla ID and property used. Do not invent IDs or hardness, resistance, stack-size, or enchantment data from memory.
 3. Use `fabric_docs_search` for Fabric APIs and `mc_wiki_search` for game concepts.
-4. Make narrow edits with the host Agent's normal file tools, then call `fabric_validate` and start `fabric_build_start(task="build")`.
+4. Begin each chat task with `modcrafting_session({action:"create",projectPath})`. Make narrow edits with the host Agent's normal file tools, then call `fabric_validate` and start `fabric_build_start({sessionId,projectPath,task:"build"})`. Pass that same sessionId to status and stop calls; only resume it explicitly when continuing an older task.
 5. Poll with `fabric_job_status`; interpret failures from Gradle output before attempting another edit.
 
-The plugin does not install a JDK. Require system JDK 21 on PATH and JAVA_HOME. MCP scaffolding includes the pinned Windows Gradle Wrapper; existing projects must provide gradlew.bat. Executing the Wrapper may download the pinned Gradle distribution and dependencies.
+For new content, use fabric_content_workspace(action="template", kind=...) to obtain supported defaults instead of guessing parameters; then customize, preview and save. The template is data only, does not write files and does not replace required vanilla-data lookup.
+
+The plugin does not install a JDK. The environment check and builds resolve the same JDK 21: explicit JAVA_HOME first, otherwise PATH; the resolved home is passed to Gradle. MCP scaffolding includes the pinned Windows Gradle Wrapper; existing projects must provide gradlew.bat. First builds may download Gradle and dependencies. Report actual storage paths; do not move/delete old caches or hardcode machine paths.
 
 For visual recipes, obtain browserUrl from modcrafting_environment_status when using --web. The browser and fabric_recipe_workspace share the same project files. Use action catalog/list/read/save. Before updating, read and pass the exact revision as expectedRevision; use null only for a new ID. On RECIPE_CONFLICT, read and compare instead of blindly overwriting. Five vanilla serializers are editable: shaped, shapeless, smelting, blasting, stonecutting. Unsupported serializers or ingredient forms remain read-only. Saving requires rebuild/restart or explicit game reload before testing. Avoid ambiguous inputs matching vanilla recipes and verify the actual output in game.
 

@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto'
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
-import { contentObjectSchema, type ContentObject, type ContentDocument, type ContentFile } from './content-model.ts'
+import { contentObjectSchema, contentKinds, contentForms, newContentObject, type ContentObject, type ContentDocument, type ContentFile } from './content-model.ts'
 import { generateContent } from './content-codegen.ts'
 import { inspectFabricProject, lookupMinecraftData } from './node.ts'
 import { CoreError } from './runtime.ts'
@@ -11,6 +11,7 @@ import type { RuntimePaths } from './contracts.ts'
 const revisionSchema = z.string().regex(/^[a-f0-9]{64}$/)
 const fields = { projectPath: z.string().min(1), value: contentObjectSchema, expectedRevision: revisionSchema.nullable() }
 export const contentRequestSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('template'), projectPath: fields.projectPath, kind: z.enum(contentKinds) }).strict(),
   z.object({ action: z.literal('list'), projectPath: fields.projectPath }).strict(),
   z.object({ action: z.literal('read'), projectPath: fields.projectPath, id: z.string().min(1) }).strict(),
   z.object({ action: z.literal('preview'), ...fields }).strict(),
@@ -167,6 +168,7 @@ export function contentWorkspace(paths: RuntimePaths, raw: ContentRequest): Reco
   const root = safe(path.resolve(request.projectPath)), project = inspectFabricProject(root)
   if (!project.valid || !project.modId || project.minecraftVersion !== '1.21.4') fail('PROJECT_UNAVAILABLE', '仅支持有效 Fabric 1.21.4 工程：' + project.errors.join('; '))
   const modId = project.modId!
+  if (request.action === 'template') return { ok: true, value: newContentObject(request.kind, modId), fields: contentForms[request.kind].fields, hint: contentForms[request.kind].hint }
   if (request.action === 'read') return { ok: true, document: readManaged(root, modId, request.id, true, paths) }
   if (request.action === 'list') {
     const documents = walk(root, '.modcrafting/content').filter(file => /^\.modcrafting\/content\/[a-z][a-z0-9_]{0,47}\.json$/.test(file)).map(file => readManaged(root, modId, `${modId}:${path.basename(file, '.json')}`))

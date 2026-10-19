@@ -16,6 +16,17 @@ function fixture() {
   const save = (value: ContentObject, expectedRevision: string | null = null) => call({ action: 'save', value, expectedRevision, previewRevision: preview(value, expectedRevision).previewRevision }).document as ContentDocument
   return { root, project, paths, call, save, preview, value: newContentObject('item', 'content_test') }
 }
+test('Content templates expose all validated defaults without writing project files', () => {
+  const f = fixture()
+  for (const kind of contentKinds) {
+    const template = f.call({ action: 'template', kind })
+    assert.equal(contentObjectSchema.safeParse(template.value).success, true)
+    assert.deepEqual(template.value, newContentObject(kind, 'content_test'))
+    assert.ok(Array.isArray(template.fields) && template.fields.length > 0)
+  }
+  assert.equal(existsSync(path.join(f.project, '.modcrafting')), false)
+})
+
 test('Six declarative types round-trip without replacing existing entrypoints, sources or other objects', () => {
   const f = fixture()
   for (const kind of contentKinds) {

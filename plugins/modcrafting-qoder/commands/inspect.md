@@ -1,6 +1,6 @@
 ---
-description: Inspect a Fabric project and open the shared ModCrafting workbench.
-argument-hint: Absolute Fabric project path
+description: 检查模组工程并打开可视化工作台。
+argument-hint: 工程路径（可省略，使用当前工作目录）
 ---
 
-Inspect the Fabric 1.21.4 project in $ARGUMENTS using modcrafting_environment_status, fabric_project_inspect and fabric_validate. If no path was supplied, ask for it. Report actual environment errors and return the complete browserUrl from this MCP process. Do not edit project files, download assets, build, launch Minecraft or execute Git operations.
+按 modcrafting-start 的沟通约定执行。使用 $ARGUMENTS 中的工程路径；省略时使用当前工作目录，只有无法确定时才问。检查环境和工程，调用 modcrafting_open_workbench 打开同一后端的工作台；空目录先打开不带 projectPath 的介绍页，说明可以新建模组。用普通中文简短说明当前能否开始、需要处理的实际问题和下一步，附可点击链接。不要把工具名、版本字段、JSON 或错误堆栈当成使用教程。此命令不编辑工程、不下载资料、不构建、不启动游戏、不执行 Git 操作。

@@ -22,7 +22,7 @@ Node 24.19.0、22.23.3 下的插件旧自测、Electron Renderer、esbuild、sha
 
 隔离源码快照与原 npm 锁的对照复现完全相同的 23 条类型错误和 21 个 Harness 失败。基线失败须如实记录，不能为使新流程通过而削弱测试。
 
-Windows 目录打包成功，开发版和显式加载 ASAR 的 renderer/IPC 烟测成功；品牌化 EXE 自身启动超时，尚未定位。P0.5 保持 PARTIAL，保留 npm 锁作回退对照，P1 未开始。完整命令、文件清单、磁盘统计口径与证据入口见 [P0.5 报告](../phase-00-pnpm-report.md)。
+Windows 目录打包成功，开发版和显式加载 ASAR 的 renderer/IPC 烟测成功；品牌化 EXE 自身启动超时，尚未定位。P0.5 保持 PARTIAL，保留 npm 锁作回退对照，P1 未开始。完整命令、文件清单、磁盘统计口径与证据入口见 [P0.5 报告](https://github.com/newstarbar/ModCrafting/blob/main/docs/phase-00-pnpm-report.md)。
 
 ## 经验
 
@@ -40,4 +40,4 @@ Windows 目录打包成功，开发版和显式加载 ASAR 的 renderer/IPC 烟�
 
 最终 Node 24 下的 Setup 配置目录包和 Node 22 下的 Portable 配置目录包均约 1.8 秒启动；包内 ZIP 中央目录读取、文件解压与流式解压通过，解析禁止回退到源码 node_modules。冻结锁与原生复测通过；重新执行基础测试后，23 条类型错误和 21 个 Harness 失败与原 npm 基线逐条一致。
 
-实际安装器安装/升级/卸载与 MC 功能仍未验证。P0.5 保持 PARTIAL，仅剩既存 CI 失败及未验证边界；原 main、用户未跟踪文件和原 npm 回退锁保持不变，没有提交或推送。详细证据与命令见 [P0.5 报告](../phase-00-pnpm-report.md)。
+实际安装器安装/升级/卸载与 MC 功能仍未验证。P0.5 保持 PARTIAL，仅剩既存 CI 失败及未验证边界；原 main、用户未跟踪文件和原 npm 回退锁保持不变，没有提交或推送。详细证据与命令见 [P0.5 报告](https://github.com/newstarbar/ModCrafting/blob/main/docs/phase-00-pnpm-report.md)。

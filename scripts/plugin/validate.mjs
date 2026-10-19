@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 export function validatePlugin(pluginRoot, staged = false) {
   const manifest = JSON.parse(readFileSync(path.join(pluginRoot, '.codex-plugin/plugin.json'), 'utf8'))
   const config = JSON.parse(readFileSync(path.join(pluginRoot, '.mcp.json'), 'utf8'))
-  const required = ['.codex-plugin/plugin.json', '.mcp.json', 'dist/mcp-server.js', 'assets/modcrafting.png', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.txt']
+  const required = ['.codex-plugin/plugin.json', '.mcp.json', 'dist/mcp-server.js', 'assets/modcrafting.png', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.txt', 'compatibility.json']
   for (const key of ['name', 'version', 'description', 'license']) {
     if (typeof manifest[key] !== 'string' || !manifest[key].trim()) throw new Error(`Invalid manifest.${key}`)
   }

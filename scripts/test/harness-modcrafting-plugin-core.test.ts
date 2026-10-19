@@ -4,7 +4,6 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import * as fs from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { spawnSync } from 'node:child_process'
 import {
   GAME_TEST_WORLD,
   createRuntimePaths,
@@ -18,14 +17,14 @@ import {
   validateGameTestSpec
 } from '../../packages/modcrafting-core/src/index.ts'
 
-test('standalone regression guard rejects Desktop, Electron and transitive Desktop imports', () => {
-  const guard = new URL('../plugin/desktop-import-guard.mjs', import.meta.url).href
-  const renderer = new URL('../../src/renderer/src/harness/game-test-runner.ts', import.meta.url).href
-  for (const target of [renderer, new URL('../../src/main/index.ts', import.meta.url).href, 'electron', `data:text/javascript,${encodeURIComponent(`import ${JSON.stringify(renderer)}`)}`]) {
-    const result = spawnSync(process.execPath, ['--experimental-strip-types', '--import', guard, '--input-type=module', '-e', `await import(${JSON.stringify(target)})`], { encoding: 'utf8', timeout: 5000, windowsHide: true })
-    assert.equal(result.status, 1)
-    assert.match(result.stderr, /DESKTOP_DEPENDENCY_FORBIDDEN/)
-  }
+test('release branch excludes the retired Desktop application and dependency chain', async () => {
+  const packageJson = JSON.parse(await fs.readFile('package.json', 'utf8'))
+  assert.equal(existsSync('src'), false)
+  assert.equal(existsSync('electron.vite.config.ts'), false)
+  assert.equal(existsSync('scripts/plugin/migrate-desktop.ts'), false)
+  assert.equal(packageJson.dependencies?.electron, undefined)
+  assert.equal(packageJson.devDependencies?.electron, undefined)
+  assert.equal(packageJson.scripts['build:win'], undefined)
 })
 
 test('shared core exposes the deterministic Observer and game-test contracts without Electron', () => {

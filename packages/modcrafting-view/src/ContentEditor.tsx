@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { action } from './client.ts'
+import { action, currentSession } from './client.ts'
 import { useVisuals } from './visuals.tsx'
 import { contentForms, contentKinds, contentObjectSchema, newContentObject, type ContentKind, type ContentObject, type ContentDocument, type ContentFile } from '../../modcrafting-core/src/content-model.ts'
 import type { ContentRequest } from '../../modcrafting-core/src/content-workspace.ts'
@@ -7,14 +7,32 @@ import type { ContentRequest } from '../../modcrafting-core/src/content-workspac
 type Request = ContentRequest extends infer T ? T extends { projectPath: string } ? Omit<T, 'projectPath'> : never : never
 type Reply = { document?: ContentDocument; documents?: ContentDocument[]; files?: ContentFile[]; previewRevision?: string; image?: string }
 export function ContentEditor({ projectPath, modId }: { projectPath: string; modId: string }) {
-  const [documents, setDocuments] = useState<ContentDocument[]>([]), [document, setDocument] = useState<ContentDocument>()
-  const [draft, setDraft] = useState<ContentObject>(() => newContentObject('item', modId))
-  const [dirty, setDirty] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(''), [message, setMessage] = useState('')
+  const storageKey = `modcrafting-draft:${currentSession()}:content:${projectPath}`
+  const [restored] = useState(() => { try { return JSON.parse(sessionStorage.getItem(storageKey) || 'null') as { document?: ContentDocument; draft?: ContentObject } | null } catch { return null } })
+  const [documents, setDocuments] = useState<ContentDocument[]>([]), [document, setDocument] = useState<ContentDocument | undefined>(restored?.document)
+  const [draft, setDraft] = useState<ContentObject>(() => restored?.draft || newContentObject('item', modId))
+  const [dirty, setDirty] = useState(Boolean(restored?.draft)), [busy, setBusy] = useState(false), [error, setError] = useState(''), [message, setMessage] = useState('')
   const [preview, setPreview] = useState<Reply>(), [query, setQuery] = useState('')
   const request = (value: Request) => action<Reply>({ operation: 'content', request: { ...value, projectPath } as ContentRequest })
   async function run(work: () => Promise<void>) { setBusy(true); setError(''); try { await work() } catch (cause) { setError(String(cause)) } finally { setBusy(false) } }
   const refresh = async () => setDocuments((await request({ action: 'list' })).documents || [])
-  useEffect(() => { void run(refresh) }, [projectPath])
+  useEffect(() => {
+    let active = true
+    void run(async () => {
+      const rows = (await request({ action: 'list' })).documents || []
+      if (!active) return
+      setDocuments(rows)
+      if (restored?.document) {
+        const latest = rows.find(value => value.id === restored.document!.id)
+        if (!latest || latest.revision !== restored.document.revision) {
+          setDocument(undefined); setDirty(false); sessionStorage.removeItem(storageKey)
+          setError('草稿没有恢复：工程文件已在其他位置改变。请重新读取工程后再编辑。')
+        } else setDocument(restored.document)
+      }
+    })
+    return () => { active = false }
+  }, [projectPath])
+  useEffect(() => { if (dirty) sessionStorage.setItem(storageKey, JSON.stringify({ draft, document })); else sessionStorage.removeItem(storageKey) }, [dirty, draft, document, storageKey])
   useEffect(() => {
     if (!dirty) return
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }

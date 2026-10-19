@@ -6,7 +6,8 @@ import { mkdtemp, mkdir, writeFile, readFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { FabricRuntime, CoreError, createRuntimePaths, localAssetStatus, lookupMinecraftData, searchFabricDocs, FABRIC_TARGET, GAME_TEST_WORLD, type GameTestSpec, type JobSnapshot } from '../../packages/modcrafting-core/src/index.ts'
+import { fixtureObserver } from './fixtures/observer.ts'
+import { FabricRuntime, CoreError, createRuntimePaths, localAssetStatus, lookupMinecraftData, searchFabricDocs, FABRIC_TARGET, GAME_TEST_WORLD, DEFAULT_TEST_PROFILE, type TestProfile, type GameTestSpec, type JobSnapshot } from '../../packages/modcrafting-core/src/index.ts'
 
 async function fixture(t: { after: (work: () => Promise<void>) => void }, withMods = false, clientExit?: number) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'modcrafting-core-runtime-'))
@@ -14,7 +15,7 @@ async function fixture(t: { after: (work: () => Promise<void>) => void }, withMo
   const paths = createRuntimePaths(path.join(root, 'data'))
   if (withMods) { await mkdir(path.join(paths.assetsRoot, 'base-mods'), { recursive: true }); await writeFile(path.join(paths.assetsRoot, 'base-mods', 'modcrafting-observer-fixture.jar'), 'Fixture only, not a real mod') }
   const calls: Array<{ task: string; args: string[] }> = [], closed: Promise<void>[] = []
-  const runtime = new FabricRuntime({ paths, version: 'fixture-runtime', toolchain: {
+  const runtime = new FabricRuntime({ paths, version: 'fixture-runtime', observer: withMods ? fixtureObserver : undefined, toolchain: {
     status: async () => ({ ok: true, platform: process.platform, node: process.version, java: { ok: true }, gradleWrapper: true, target: FABRIC_TARGET, remediation: [] }),
     startGradle: async (_project, task, events, args = []) => {
       calls.push({ task, args })
@@ -27,11 +28,11 @@ async function fixture(t: { after: (work: () => Promise<void>) => void }, withMo
   t.after(async () => { runtime.close(); let timer: ReturnType<typeof setTimeout> | undefined; try { await Promise.race([Promise.all(closed), new Promise((_, reject) => { timer = setTimeout(() => reject(Error('Fixture processes did not stop')), 5000) })]) } finally { clearTimeout(timer) } })
   return { root, project, paths, runtime, calls }
 }
-async function finished(runtime: FabricRuntime, id: string): Promise<JobSnapshot> {
+async function finished(runtime: FabricRuntime, id: string, sessionId?: string): Promise<JobSnapshot> {
   const limit = Date.now() + 5000
   while (Date.now() < limit) {
-    const row = runtime.jobStatus(id); assert.ok('status' in row)
-    if (row.status !== 'running') return row
+    const row = runtime.jobStatus(id, sessionId); assert.ok('status' in row)
+    if (row.status !== 'running' && !(row.status === 'stopped' && !row.result && !row.error)) return row
     await new Promise((resolve) => setTimeout(resolve, 10))
   }
   throw Error('Fixture job timed out')
@@ -44,6 +45,7 @@ async function observer(t: { after: (work: () => Promise<void>) => void }, direc
     requests.push({ api: request.url!, body: text ? JSON.parse(text) : {} })
     response.setHeader('content-type', 'application/json')
     const data = request.url === '/v2/capabilities' ? { ok: true, protocolVersion: 2 }
+      : request.url === '/v2/test-preparation' ? { ok: true, phase: 'test_ready', ready: true, failed: false, screen: { simpleName: 'TitleScreen' } }
       : request.url === '/v1/screenshot' ? { ok: true, path: path.join(directory, 'fixture-shot.png') }
       : request.url === '/v2/snapshot' ? { ok: true, worldName: GAME_TEST_WORLD, requestId: `${label}_${++sequence}`, observedAt: Date.now(), inventory: { ok: true, hotbar: [], main: [{ id: 'minecraft:stone', count: 1 }], armor: [], offhand: [] }, player: { health: 20 } }
       : { ok: true, executed: true }
@@ -138,10 +140,11 @@ test('Cold asset preparation uses proxy fallback and the layouts consumed by Cor
   }
   try {
     const result = await f.runtime.prepareAssets()
-    assert.equal(result.ok, true); assert.equal(proxyAttempts, 5); assert.equal(directAttempts, 5)
-    assert.ok(result.localAssets.every((row) => row.status === 'present'))
+    assert.equal(result.ok, true); assert.equal(proxyAttempts, 4); assert.equal(directAttempts, 4)
+    assert.ok(result.localAssets.filter(row => row.name !== 'base-mods').every((row) => row.status === 'present'))
+    assert.equal(result.localAssets.find(row => row.name === 'base-mods')?.status, 'missing')
     assert.equal(lookupMinecraftData(f.paths, 'item', 'stone').ok, true)
-    assert.ok(existsSync(path.join(f.paths.assetsRoot, 'base-mods', 'modcrafting-observer-fixture.jar')))
+    assert.equal(existsSync(path.join(f.paths.assetsRoot, 'base-mods')), false)
   } finally { globalThis.fetch = fetchBefore }
 })
 test('Core build jobs expose logs, terminal errors and stable missing-job codes', async (t) => {
@@ -153,13 +156,53 @@ test('Core build jobs expose logs, terminal errors and stable missing-job codes'
   assert.equal(bad.status, 'failed'); assert.equal(bad.code, 'BUILD_FAILED')
   assert.equal((f.runtime.jobStatus('missing') as { code: string }).code, 'JOB_NOT_FOUND')
   assert.throws(() => f.runtime.startBuild(f.project, 'build & command'), (error) => error instanceof CoreError && error.code === 'INVALID_ARGUMENT')
-  assert.throws(() => f.runtime.runClient(f.project), (error) => error instanceof CoreError && error.code === 'ASSET_UNAVAILABLE')
+  assert.throws(() => f.runtime.runClient(f.project), (error) => error instanceof CoreError && error.code === 'OBSERVER_UPDATE_REQUIRED')
 })
-test('A queued game test keeps its selected instance when another client becomes latest', async (t) => {
+test('Session profile snapshots apply to a copied save without changing its source or a running options file', async (t) => {
+  const f = await fixture(t, true)
+  const session = f.runtime.createSession({ name: 'copy-save profile', projectPath: f.project })
+  const source = path.join(f.root, 'source-save')
+  await mkdir(path.join(source, 'region'), { recursive: true })
+  await writeFile(path.join(source, 'level.dat'), 'source level data')
+  await writeFile(path.join(source, 'region', 'r.0.0.mca'), 'source chunks')
+  const profile: TestProfile = {
+    ...structuredClone(DEFAULT_TEST_PROFILE), language: 'en_us', window: { width: 1600, height: 900 },
+    renderDistance: 12, maxFps: 120, volumePercent: 80,
+    map: { source: 'save_copy', terrain: 'normal', seed: '0', sourcePath: source },
+    gameMode: 'adventure', difficulty: 'easy', allowCommands: false
+  }
+  f.runtime.setTestProfile(session.sessionId, profile, { projectPath: f.project })
+  assert.equal(existsSync(path.join(f.project, '.modcrafting', 'test-profile.json')), false, 'project defaults require explicit opt-in')
+  f.runtime.setTestProfile(session.sessionId, profile, { projectPath: f.project, saveAsProjectDefault: true })
+  assert.deepEqual(JSON.parse(await readFile(path.join(f.project, '.modcrafting', 'test-profile.json'), 'utf8')), profile)
+
+  const launched = f.runtime.runClient(f.project, undefined, session.sessionId)
+  assert.equal(launched.profile.language, 'en_us')
+  const world = path.join(launched.gameDirectory, 'saves', GAME_TEST_WORLD)
+  assert.equal(await readFile(path.join(world, 'level.dat'), 'utf8'), 'source level data')
+  assert.equal(await readFile(path.join(world, 'region', 'r.0.0.mca'), 'utf8'), 'source chunks')
+  const owner = JSON.parse(await readFile(path.join(world, '.modcrafting-owner.json'), 'utf8'))
+  assert.equal(owner.sessionId, session.sessionId); assert.equal(owner.copiedFrom, source)
+  const optionsPath = path.join(launched.gameDirectory, 'options.txt'), before = await readFile(optionsPath, 'utf8')
+  for (const setting of ['lang:en_us', 'overrideWidth:1600', 'overrideHeight:900', 'renderDistance:12', 'maxFps:120', 'soundCategory_master:0.8', 'narrator:0']) assert.ok(before.includes(setting), setting)
+
+  const changed = { ...profile, language: 'zh_cn' as const }
+  f.runtime.setTestProfile(session.sessionId, changed, { projectPath: f.project })
+  assert.equal(await readFile(optionsPath, 'utf8'), before, 'changing the next-launch profile must not touch the running game configuration')
+  assert.equal(f.runtime.state(session.sessionId).instances[0].profile?.language, 'en_us', 'the launch record keeps the actual applied profile snapshot')
+  f.runtime.stopClient(launched.instanceId, session.sessionId)
+  await finished(f.runtime, launched.jobId, session.sessionId)
+  assert.equal(await readFile(path.join(source, 'level.dat'), 'utf8'), 'source level data')
+  assert.equal(await readFile(path.join(source, 'region', 'r.0.0.mca'), 'utf8'), 'source chunks')
+})
+
+test('A queued game test keeps its session-owned instance while another project runs in another session', async (t) => {
   const f = await fixture(t, true)
   const a = f.runtime.runClient(f.project, path.join(f.root, 'game A')); const observerA = await observer(t, a.gameDirectory, 'a')
   const testJob = f.runtime.startTest(spec)
-  const b = f.runtime.runClient(f.project, path.join(f.root, 'game B')); const observerB = await observer(t, b.gameDirectory, 'b')
+  const otherProject = path.join(f.root, 'project B'); await mkdir(otherProject)
+  const otherSession = f.runtime.createSession({ name: '另一任务', projectPath: otherProject })
+  const b = f.runtime.runClient(otherProject, undefined, otherSession.sessionId); const observerB = await observer(t, b.gameDirectory, 'b')
   assert.notEqual(a.instanceId, b.instanceId)
   const result = await finished(f.runtime, testJob.jobId)
   assert.equal(result.status, 'completed'); assert.equal(result.result?.verdict, 'PASS')
@@ -172,19 +215,20 @@ test('A queued game test keeps its selected instance when another client becomes
 })
 test('Runtime readiness, controlled input and screenshot share state without exposing discovery secrets', async (t) => {
   const f = await fixture(t, true); const a = f.runtime.runClient(f.project, path.join(f.root, 'game'))
-  assert.throws(() => f.runtime.runClient(f.project, a.gameDirectory), (error) => error instanceof CoreError && error.code === 'INSTANCE_CONFLICT')
+  assert.throws(() => f.runtime.runClient(f.project, a.gameDirectory), (error) => error instanceof CoreError && error.code === 'SESSION_GAME_BUSY')
   assert.equal((await f.runtime.runtimeStatus(a.instanceId)).bridgeReady, false)
   const bridge = await observer(t, a.gameDirectory, 'ready')
   const state = await f.runtime.runtimeStatus(a.instanceId)
-  assert.equal(state.bridgeReady, true); assert.equal(state.instanceId, a.instanceId)
+  assert.equal(state.bridgeReady, true); assert.equal(state.canRunTests, true); assert.equal(state.instanceId, a.instanceId)
   assert.equal(JSON.stringify(state).includes('fixture-private-token'), false)
   await f.runtime.input('press_key', { action: 'unsafe-override' }, a.instanceId)
   assert.equal(bridge.requests.at(-1)?.body.action, 'press_key')
   assert.equal((await f.runtime.screenshot(a.instanceId)).data.path, path.join(a.gameDirectory, 'fixture-shot.png'))
   f.runtime.stopClient(a.instanceId)
+  await finished(f.runtime, a.jobId)
   assert.throws(() => f.runtime.runClient(f.project, a.gameDirectory), (error) => error instanceof CoreError && error.code === 'INSTANCE_CONFLICT')
   assert.equal((await f.runtime.runtimeStatus(a.instanceId)).bridgeReady, false)
-  assert.throws(() => f.runtime.command('fixture', a.instanceId), (error) => error instanceof CoreError && error.code === 'OBSERVER_UNAVAILABLE')
+  await assert.rejects(f.runtime.command('fixture', a.instanceId), (error) => error instanceof CoreError && error.code === 'OBSERVER_UNAVAILABLE')
 })
 test('Invalid scenarios fail before scheduling jobs or selecting a game instance', async (t) => {
   const f = await fixture(t)

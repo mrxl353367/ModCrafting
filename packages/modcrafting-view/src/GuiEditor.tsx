@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent } from 'react'
-import { action } from './client.ts'
+import { action, currentSession } from './client.ts'
 import { useVisuals, ItemVisual } from './visuals.tsx'
 import { guiLayoutSchema, newGuiLayout, newGuiElement, guiTypes, guiTypeLabels, guiOrigin, moveGuiElement, resizeGuiElement, type GuiLayout, type GuiElement, type GuiDocument, type GuiFile } from '../../modcrafting-core/src/gui-model.ts'
 import type { GuiRequest } from '../../modcrafting-core/src/gui-workspace.ts'
@@ -8,17 +8,32 @@ type Request = GuiRequest extends infer T ? T extends { projectPath: string } ? 
 type Reply = { documents?: GuiDocument[]; document?: GuiDocument; files?: GuiFile[]; previewRevision?: string; configName?: string }
 const layouts = { 'custom-screen': '自定义 Screen', 'option-list': '配置界面', 'hud-overlay': 'HUD 叠层' }
 export function GuiEditor({ projectPath, modId }: { projectPath: string; modId: string }) {
-  const [documents, setDocuments] = useState<GuiDocument[]>([]), [document, setDocument] = useState<GuiDocument>()
-  const [draft, setDraft] = useState<GuiLayout>(() => newGuiLayout(modId)), [selectedId, select] = useState('')
-  const [dirty, setDirty] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(''), [message, setMessage] = useState(''), [plan, setPlan] = useState<Reply>()
-  const [simulate, setSimulate] = useState(false), [values, setValues] = useState<Record<string, number | boolean>>({}), [grid, setGrid] = useState(true)
-  const [resolution, setResolution] = useState('1280x720'), [guiScale, setGuiScale] = useState(3), [available, setAvailable] = useState(600)
+  const storageKey = `modcrafting-draft:${currentSession()}:gui:${projectPath}`
+  const [restored] = useState(() => { try { return JSON.parse(sessionStorage.getItem(storageKey) || 'null') as { document?: GuiDocument; draft?: GuiLayout; selectedId?: string; values?: Record<string, number | boolean>; simulate?: boolean; grid?: boolean; resolution?: string; guiScale?: number } | null } catch { return null } })
+  const [documents, setDocuments] = useState<GuiDocument[]>([]), [document, setDocument] = useState<GuiDocument | undefined>(restored?.document)
+  const [draft, setDraft] = useState<GuiLayout>(() => restored?.draft || newGuiLayout(modId)), [selectedId, select] = useState(restored?.selectedId || '')
+  const [dirty, setDirty] = useState(Boolean(restored?.draft)), [busy, setBusy] = useState(false), [error, setError] = useState(''), [message, setMessage] = useState(''), [plan, setPlan] = useState<Reply>()
+  const [simulate, setSimulate] = useState(restored?.simulate || false), [values, setValues] = useState<Record<string, number | boolean>>(restored?.values || {}), [grid, setGrid] = useState(restored?.grid ?? true)
+  const [resolution, setResolution] = useState(restored?.resolution || '1280x720'), [guiScale, setGuiScale] = useState(restored?.guiScale || 3), [available, setAvailable] = useState(600)
   const [guides, setGuides] = useState<{ guideX?: number; guideY?: number }>({})
   const frame = useRef<HTMLDivElement>(null), drag = useRef<{ id: string; x: number; y: number; element: GuiElement; resize: boolean } | undefined>(undefined)
   const request = (value: Request) => action<Reply>({ operation: 'gui', request: { ...value, projectPath } as GuiRequest })
   const refresh = async () => setDocuments((await request({ action: 'list' })).documents || [])
   async function run(work: () => Promise<void>) { setBusy(true); setError(''); try { await work() } catch (cause) { setError(String(cause)) } finally { setBusy(false) } }
-  useEffect(() => { void run(refresh) }, [projectPath])
+  useEffect(() => {
+    let active = true
+    void run(async () => {
+      const rows = (await request({ action: 'list' })).documents || []
+      if (!active) return
+      setDocuments(rows)
+      if (restored?.document) {
+        const latest = rows.find(value => value.id === restored.document!.id)
+        if (!latest || latest.revision !== restored.document.revision) { setDocument(undefined); setDirty(false); sessionStorage.removeItem(storageKey); setError('草稿没有恢复：界面文件已在其他位置改变。请重新读取后再编辑。') }
+      }
+    })
+    return () => { active = false }
+  }, [projectPath])
+  useEffect(() => { if (dirty) sessionStorage.setItem(storageKey, JSON.stringify({ document, draft, selectedId, values, simulate, grid, resolution, guiScale })); else sessionStorage.removeItem(storageKey) }, [dirty, document, draft, selectedId, values, simulate, grid, resolution, guiScale, storageKey])
   useEffect(() => { if (!frame.current) return; const observer = new ResizeObserver(entries => setAvailable(entries[0].contentRect.width)); observer.observe(frame.current); return () => observer.disconnect() }, [])
   useEffect(() => { if (!dirty) return; const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = '' }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn) }, [dirty])
   const selected = draft.elements.find(element => element.id === selectedId), readonly = !!document && !document.editable

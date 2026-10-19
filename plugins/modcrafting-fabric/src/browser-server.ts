@@ -3,12 +3,18 @@ import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { readFile, realpath, stat } from 'node:fs/promises'
 import path from 'node:path'
 import { z } from 'zod'
-import { FabricRuntime, CoreError, inspectFabricProject, resolveProjectPath, readProjectCatalog, recipeWorkspace, recipeRequestSchema, contentWorkspace, contentRequestSchema } from '../../../packages/modcrafting-core/src/index.ts'
+import { FabricRuntime, CoreError, inspectFabricProject, resolveProjectPath, recipeWorkspace, recipeRequestSchema, contentWorkspace, contentRequestSchema } from '../../../packages/modcrafting-core/src/index.ts'
 import { guiWorkspace, guiRequestSchema } from '../../../packages/modcrafting-core/src/gui-workspace.ts'
 import { visualAssets } from '../../../packages/modcrafting-core/src/visual-assets.ts'
+import { gameTestTemplate, gameTestSpecSchema, testProfileSchema, type GameFeatureType } from '../../../packages/modcrafting-core/src/domain.ts'
 
 const projectPath = z.string().min(1), instanceId = z.string().min(1)
 const actionSchema = z.discriminatedUnion('operation', [
+  z.object({ operation: z.literal('resume_session'), sessionId: z.string().uuid() }).strict(),
+  z.object({ operation: z.literal('select_session'), sessionId: z.string().uuid() }).strict(),
+  z.object({ operation: z.literal('profile_read'), projectPath: projectPath.optional() }).strict(),
+  z.object({ operation: z.literal('profile_write'), projectPath: projectPath.optional(), profile: testProfileSchema, saveAsProjectDefault: z.boolean().default(false) }).strict(),
+  z.object({ operation: z.literal('template'), featureType: z.enum(['new_item', 'new_block', 'new_recipe', 'entity_behavior', 'player_interaction', 'hud_gui']).default('new_item') }).strict(),
   z.object({ operation: z.literal('gui'), request: guiRequestSchema }).strict(),
   z.object({ operation: z.literal('visuals'), projectPath, itemIds: z.array(z.string().min(1).max(200)).max(80), textureIds: z.array(z.string().min(1).max(200)).max(16) }).strict(),
   z.object({ operation: z.literal('content'), request: contentRequestSchema }).strict(),
@@ -17,12 +23,12 @@ const actionSchema = z.discriminatedUnion('operation', [
   z.object({ operation: z.literal('environment'), projectPath: projectPath.optional() }).strict(),
   z.object({ operation: z.literal('prepare') }).strict(),
   z.object({ operation: z.literal('build'), projectPath, task: z.string().regex(/^[A-Za-z][A-Za-z0-9:.-]*$/).default('build') }).strict(),
-  z.object({ operation: z.literal('run'), projectPath, gameDirectory: z.string().min(1).optional() }).strict(),
+  z.object({ operation: z.literal('run'), projectPath }).strict(),
   z.object({ operation: z.literal('stop'), jobId: z.string().min(1) }).strict(),
-  z.object({ operation: z.literal('runtime'), instanceId }).strict(),
-  z.object({ operation: z.literal('snapshot'), instanceId }).strict(),
-  z.object({ operation: z.literal('screenshot'), instanceId }).strict(),
-  z.object({ operation: z.literal('test'), instanceId, spec: z.unknown() }).strict()
+  z.object({ operation: z.literal('runtime'), instanceId: instanceId.optional() }).strict(),
+  z.object({ operation: z.literal('snapshot'), instanceId: instanceId.optional() }).strict(),
+  z.object({ operation: z.literal('screenshot'), instanceId: instanceId.optional() }).strict(),
+  z.object({ operation: z.literal('test'), instanceId: instanceId.optional(), spec: gameTestSpecSchema }).strict()
 ])
 export type BrowserAction = z.input<typeof actionSchema>
 export type BrowserAssets = { html: string; js: string; css: string }
@@ -51,10 +57,13 @@ export async function startBrowserView(runtime: FabricRuntime, assets: BrowserAs
     const expected = Buffer.from(token)
     if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) { json(401, { ok: false, code: 'VIEW_AUTH_REQUIRED', error: 'Open the complete URL printed by the server' }); return }
     try {
-      if (request.method === 'GET' && url.pathname === '/api/state') { json(200, runtime.state()); return }
-      if (request.method === 'GET' && url.pathname === '/api/projects') { json(200, readProjectCatalog(runtime.paths.dataRoot)); return }
+      if (request.headers['x-modcrafting-backend'] !== runtime.backendId) throw new CoreError('BACKEND_MISMATCH', '这个浏览器链接连接的不是原来的任务后端，请从当前任务重新打开工作台。')
+      const sessionId = String(request.headers['x-modcrafting-session'] || '')
+      if (!/^[0-9a-f-]{36}$/i.test(sessionId)) throw new CoreError('SESSION_REQUIRED', '工作台没有选择任务会话，请从当前任务链接重新打开。')
+      if (request.method === 'GET' && url.pathname === '/api/state') { json(200, runtime.state(sessionId)); return }
+      if (request.method === 'GET' && url.pathname === '/api/sessions') { json(200, { sessions: runtime.state(sessionId).sessions || [] }); return }
       if (request.method === 'GET' && url.pathname.startsWith('/api/report/')) {
-        const job = runtime.jobStatus(decodeURIComponent(url.pathname.slice('/api/report/'.length)))
+        const job = runtime.jobStatus(decodeURIComponent(url.pathname.slice('/api/report/'.length)), sessionId)
         if (!('result' in job) || typeof job.result?.reportPath !== 'string') throw new CoreError('REPORT_UNAVAILABLE', 'This job has no report')
         const root = await realpath(runtime.paths.reportsRoot), file = await realpath(job.result.reportPath)
         const relative = path.relative(root, file)
@@ -74,25 +83,54 @@ export async function startBrowserView(runtime: FabricRuntime, assets: BrowserAs
       const action = parsed.data
       let value: unknown
       switch (action.operation) {
-        case 'gui': value = guiWorkspace(runtime.paths, action.request); break;
+        case 'gui': {
+          const project = inspectFabricProject(resolveProjectPath(action.request.projectPath))
+          if (!project.valid || project.minecraftVersion !== '1.21.4') throw new CoreError('PROJECT_UNAVAILABLE', '需要有效的 Fabric 1.21.4 工程')
+          runtime.updateSession(sessionId, { projectPath: project.path })
+          value = guiWorkspace(runtime.paths, action.request); break
+        }
         case 'visuals': {
           const project = inspectFabricProject(resolveProjectPath(action.projectPath))
           if (!project.valid || project.minecraftVersion !== '1.21.4') throw new CoreError('PROJECT_UNAVAILABLE', '需要有效的 Fabric 1.21.4 工程')
+          runtime.updateSession(sessionId, { projectPath: project.path })
           value = await visualAssets(runtime.paths, project.path, action.itemIds, action.textureIds); break
         }
-        case 'content': value = contentWorkspace(runtime.paths, action.request); break
-        case 'recipe': value = recipeWorkspace(runtime.paths, action.request); break
-        case 'project': value = { ok: true, project: inspectFabricProject(resolveProjectPath(action.projectPath)) }; break
+        case 'content': {
+          const project = inspectFabricProject(resolveProjectPath(action.request.projectPath))
+          if (!project.valid || project.minecraftVersion !== '1.21.4') throw new CoreError('PROJECT_UNAVAILABLE', '需要有效的 Fabric 1.21.4 工程')
+          runtime.updateSession(sessionId, { projectPath: project.path })
+          value = contentWorkspace(runtime.paths, action.request); break
+        }
+        case 'recipe': {
+          const project = inspectFabricProject(resolveProjectPath(action.request.projectPath))
+          if (!project.valid || project.minecraftVersion !== '1.21.4') throw new CoreError('PROJECT_UNAVAILABLE', '需要有效的 Fabric 1.21.4 工程')
+          runtime.updateSession(sessionId, { projectPath: project.path })
+          value = recipeWorkspace(runtime.paths, action.request); break
+        }
+        case 'resume_session': value = { ok: true, session: runtime.resumeSession(action.sessionId) }; break
+        case 'select_session': {
+          const session = runtime.readSession(action.sessionId)
+          value = { ok: true, session: session.status === 'ended' ? session : runtime.resumeSession(action.sessionId), readOnly: session.status === 'ended' }
+          break
+        }
+        case 'profile_read': value = { ok: true, sessionId, profile: runtime.getTestProfile(sessionId, action.projectPath) }; break
+        case 'profile_write': value = runtime.setTestProfile(sessionId, action.profile, { projectPath: action.projectPath, saveAsProjectDefault: action.saveAsProjectDefault }); break
+        case 'template': value = { ok: true, spec: gameTestTemplate(action.featureType as GameFeatureType), schema: gameTestSpecSchema.toJSONSchema() }; break
+        case 'project': {
+          const project = inspectFabricProject(resolveProjectPath(action.projectPath))
+          if (project.valid) runtime.updateSession(sessionId, { projectPath: project.path, currentModule: 'overview' })
+          value = { ok: true, project }; break
+        }
         case 'environment': value = await runtime.environmentStatus(action.projectPath); break
         case 'prepare': value = await runtime.prepareAssets(); break
-        case 'build': value = runtime.startBuild(action.projectPath, action.task); break
-        case 'run': value = runtime.runClient(action.projectPath, action.gameDirectory); break
-        case 'stop': value = runtime.stopJob(action.jobId); break
-        case 'runtime': value = await runtime.runtimeStatus(action.instanceId); break
-        case 'snapshot': value = await runtime.snapshot(action.instanceId); break
-        case 'test': value = runtime.startTest(action.spec, action.instanceId); break
+        case 'build': value = runtime.startBuild(action.projectPath, action.task, sessionId); break
+        case 'run': value = runtime.runClient(action.projectPath, undefined, sessionId); break
+        case 'stop': value = runtime.stopJob(action.jobId, sessionId); break
+        case 'runtime': value = await runtime.runtimeStatus(action.instanceId, sessionId); break
+        case 'snapshot': value = await runtime.snapshot(action.instanceId, undefined, sessionId); break
+        case 'test': value = runtime.startTest(action.spec, action.instanceId, sessionId); break
         case 'screenshot': {
-          const result = await runtime.screenshot(action.instanceId)
+          const result = await runtime.screenshot(action.instanceId, sessionId)
           const base64 = result.data.base64
           // Serve bridge image data only; never read an arbitrary bridge-supplied file path.
           value = typeof base64 === 'string' && base64.length <= 16 * 1024 * 1024 && /^[A-Za-z0-9+/=\r\n]+$/.test(base64)

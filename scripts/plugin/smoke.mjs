@@ -82,7 +82,7 @@ const call = async (client, name, args = {}) => {
   const decoded = value.structuredContent || JSON.parse(value.content.find((entry) => entry.type === 'text').text)
   return decoded
 }
-let toolCount = 0
+let toolCount = 0, sessionId
 await session({ MODCRAFTING_DATA: data, PATH: fixtures }, async (client, transport) => {
   assert.equal(client.getServerVersion().version, manifest.version)
   assert.ok(transport.sent.some((message) => message.method === 'initialize'))
@@ -91,7 +91,7 @@ await session({ MODCRAFTING_DATA: data, PATH: fixtures }, async (client, transpo
   toolCount = tools.length
   const names = tools.map((tool) => tool.name)
   assert.equal(new Set(names).size, names.length)
-  for (const name of ['modcrafting_environment_status', 'fabric_project_inspect', 'fabric_validate', 'fabric_recipe_workspace', 'fabric_content_workspace', 'fabric_gui_workspace', 'minecraft_test_start', 'minecraft_test_status']) assert.ok(names.includes(name), `Missing ${name}`)
+  for (const name of ['modcrafting_session', 'modcrafting_test_profile', 'minecraft_test_template', 'modcrafting_environment_status', 'fabric_project_inspect', 'fabric_validate', 'fabric_recipe_workspace', 'fabric_content_workspace', 'fabric_gui_workspace', 'minecraft_test_start', 'minecraft_test_status']) assert.ok(names.includes(name), `Missing ${name}`)
   const ajv = new Ajv({ strict: false, validateFormats: false })
   for (const tool of tools) assert.equal(ajv.validateSchema(tool.inputSchema), true, `Invalid schema: ${tool.name}`)
   assert.equal((await call(client, 'fabric_gui_workspace', { action: 'template', projectPath: path.join(fixtures, 'valid'), layoutType: 'hud-overlay' })).value.layoutType, 'hud-overlay');
@@ -104,12 +104,15 @@ await session({ MODCRAFTING_DATA: data, PATH: fixtures }, async (client, transpo
   assert.ok(environment.remediation.length > 0)
   assert.equal(environment.contractVersion, 1)
   assert.equal(environment.assets.length, 5)
-  assert.ok(environment.assets.every((asset) => asset.status === 'missing'))
+  assert.ok(environment.assets.filter(asset => asset.name !== 'base-mods').every((asset) => asset.status === 'missing'))
+  assert.equal(environment.assets.find(asset => asset.name === 'base-mods').status, environment.observer.bundled ? 'present' : 'missing')
+  assert.equal(environment.capabilities.toolchain.scaffoldIncludesWrapper, true)
   assert.equal(environment.capabilities.entityQuery.tagFilters, false)
   assert.equal(environment.capabilities.toolchain.automaticDownload, false)
   const newProject = path.join(scope, 'new-scaffold-with-wrapper')
   const created = await call(client, 'fabric_project_scaffold', { projectPath: newProject, modId: 'new_scaffold', modName: 'New Scaffold' })
   assert.equal(created.project.valid, true)
+  sessionId = (await call(client, 'modcrafting_session', { action: 'create', name: 'MCP protocol smoke', projectPath: newProject })).session.sessionId
   assert.deepEqual((await call(client, 'fabric_recipe_workspace', { action: 'list', projectPath: newProject })).recipes, [])
   assert.equal((await readFile(path.join(newProject, 'gradle/wrapper/gradle-wrapper.jar'))).subarray(0, 2).toString(), 'PK')
   assert.match(await readFile(path.join(newProject, 'gradle/wrapper/gradle-wrapper.properties'), 'utf8'), /distributionSha256Sum=[a-f0-9]{64}/)
@@ -126,13 +129,15 @@ await session({ MODCRAFTING_DATA: data, PATH: fixtures }, async (client, transpo
   assert.deepEqual(await readdir(path.join(data, 'knowledge')), [])
   assert.deepEqual(await readdir(path.join(data, 'assets')), [])
   const gameSpec = { version: 2, id: 'smoke_game', featureType: 'new_item', subject: {}, setup: [], actions: [{ type: 'wait', ms: 0 }], assertions: [{ type: 'inventory_contains', itemId: 'minecraft:stone' }], cleanup: [] }
-  assert.equal((await call(client, 'minecraft_test_start', { spec: { ...gameSpec, assertions: [] } })).code, 'INVALID_SPEC')
-  const noGame = await call(client, 'minecraft_test_start', { spec: gameSpec })
+  const template = await call(client, 'minecraft_test_template', { featureType: 'new_item' })
+  assert.equal(template.spec.version, 2); assert.equal(template.schema.required.includes('assertions'), true)
+  const noGame = await call(client, 'minecraft_test_start', { sessionId, spec: gameSpec })
   assert.equal(noGame.code, 'ENVIRONMENT_UNAVAILABLE')
   assert.equal(noGame.verdict, 'INCONCLUSIVE')
-  const missingJob = await call(client, 'minecraft_test_status', { jobId: 'fixture-not-running' })
+  const missingJob = await call(client, 'minecraft_test_status', { sessionId, jobId: 'fixture-not-running' })
   assert.equal(missingJob.ok, false)
   assert.equal(missingJob.code, 'JOB_NOT_FOUND')
+  await call(client, 'modcrafting_session', { action: 'end', sessionId })
   // Closing stdin must end the server without transport.close() killing it.
   transport.child.stdin.end()
   const exited = await bounded(transport.exit, 'stdin EOF exit', 2000)

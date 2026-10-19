@@ -10,4 +10,4 @@
 
 Node 22/24 定向测试均 46/46；构建和独立 MCP 协议通过。全仓 807/786/21 与旧 21 个失败一致，23 条类型错误逐条一致，没有新增失败。Desktop 前台端到端、全部断言迁移、通用 live CLI 与远端 CI 尚未完成。
 
-P1/P2 改动在隔离分支并存；原 main 和 9 个未跟踪文件哈希复核不变，无暂存、提交、推送、发布或用户文件删除。用户安装插件保持 P1，最新 Stage 未自动升级账户缓存。详见 [实施报告](../phase-02-implementation-report.md) 与 [范围](../phase-02-acceptance-bench.md)。
+P1/P2 改动在隔离分支并存；原 main 和 9 个未跟踪文件哈希复核不变，无暂存、提交、推送、发布或用户文件删除。用户安装插件保持 P1，最新 Stage 未自动升级账户缓存。详见 [实施报告](https://github.com/newstarbar/ModCrafting/blob/main/docs/phase-02-implementation-report.md) 与 [范围](https://github.com/newstarbar/ModCrafting/blob/main/docs/phase-02-acceptance-bench.md)。

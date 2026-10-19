@@ -20,60 +20,77 @@ export const fabricBenchLiveSchema = z.object({
 
 export const benchWait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 /** Stopped is an acknowledgement; result/error confirms the owned worker settled. */
-export async function settleBenchJob(runtime: FabricRuntime, jobId: string, timeoutMs: number): Promise<JobSnapshot> {
+export async function settleBenchJob(runtime: FabricRuntime, jobId: string, sessionId: string, timeoutMs: number): Promise<JobSnapshot> {
   const deadline = Date.now() + timeoutMs
   do {
-    const job = runtime.jobStatus(jobId)
+    const job = runtime.jobStatus(jobId, sessionId)
     if (!('status' in job)) throw new CoreError(job.code, job.error)
     if (job.result || job.error) return job
     await benchWait(50)
   } while (Date.now() < deadline)
   throw new CoreError('STOP_UNCONFIRMED', `Worker ${jobId} did not settle within ${timeoutMs}ms`)
 }
-export async function waitBenchJob(runtime: FabricRuntime, jobId: string, timeoutMs: number, signal?: AbortSignal): Promise<JobSnapshot> {
+export async function waitBenchJob(runtime: FabricRuntime, jobId: string, sessionId: string, timeoutMs: number, signal?: AbortSignal): Promise<JobSnapshot> {
   const deadline = Date.now() + timeoutMs
   do {
     if (signal?.aborted || Date.now() >= deadline) {
-      runtime.stopJob(jobId)
+      runtime.stopJob(jobId, sessionId)
       // Core tests execute their finally cleanup before settling; never discard that report.
-      await settleBenchJob(runtime, jobId, 30000)
+      await settleBenchJob(runtime, jobId, sessionId, 30000)
       throw new CoreError(signal?.aborted ? 'CANCELLED' : 'TIMEOUT', `Job ${jobId} interrupted`)
     }
-    const job = runtime.jobStatus(jobId)
+    const job = runtime.jobStatus(jobId, sessionId)
     if (!('status' in job)) throw new CoreError(job.code, job.error)
     if (job.result || job.error) return job
     await benchWait(50)
   } while (true)
 }
-export async function requireBenchWorld(runtime: FabricRuntime, instanceId: string) {
-  const snapshot = await runtime.snapshot(instanceId)
+export async function waitBenchReady(runtime: FabricRuntime, instanceId: string, sessionId: string, timeoutMs = 300000, signal?: AbortSignal) {
+  const deadline = Date.now() + timeoutMs
+  do {
+    if (signal?.aborted) throw new CoreError('CANCELLED', 'Bench cancelled while waiting for the test world.')
+    const status = await runtime.runtimeStatus(instanceId, sessionId)
+    if (!('status' in status.job) || status.job.status !== 'running') throw new CoreError('CLIENT_FAILED', status.job.error || 'Minecraft client stopped before the test world was ready.')
+    if (status.canRunTests) return status
+    if (status.preparation.phase === 'failed') throw new CoreError('GAME_PREPARATION_FAILED', status.preparation.blockedReason || status.message || 'Game preparation failed.')
+    if (Date.now() >= deadline) throw new CoreError('GAME_NOT_READY', `${status.preparation.phase}: ${status.preparation.blockedReason || 'test world preparation timed out'}`)
+    await benchWait(250)
+  } while (true)
+}
+
+export async function requireBenchWorld(runtime: FabricRuntime, instanceId: string, sessionId: string) {
+  const ready = await runtime.runtimeStatus(instanceId, sessionId)
+  if (!ready.canRunTests) throw new CoreError('GAME_NOT_READY', `${ready.preparation.phase}: ${ready.preparation.blockedReason || ready.message || 'test world is not ready'}`)
+  const snapshot = await runtime.snapshot(instanceId, undefined, sessionId)
   if (!snapshot.ok || snapshot.data.worldName !== GAME_TEST_WORLD) throw new CoreError('WORLD_UNAVAILABLE', `Bench requires ${GAME_TEST_WORLD}; observed ${snapshot.data.worldName || 'no world'}`)
   return snapshot
 }
-export async function benchCommand(runtime: FabricRuntime, instanceId: string, command: string) {
-  await requireBenchWorld(runtime, instanceId)
-  const result = await runtime.command(command, instanceId)
+export async function benchCommand(runtime: FabricRuntime, instanceId: string, sessionId: string, command: string) {
+  await requireBenchWorld(runtime, instanceId, sessionId)
+  const result = await runtime.command(command, instanceId, sessionId)
   if (!result.ok || result.data.executed !== true) throw new CoreError('ACTION_FAILED', `Bench command failed: ${command}`)
   return result
 }
 
 /** Uses the same live Core jobs/reports as MCP; owns neither a client nor a model. */
 export async function runLiveFabricBench(runtime: FabricRuntime, raw: unknown, instanceId: string, options: {
-  caseTimeoutMs?: number; signal?: AbortSignal; onCase?: (row: FabricBenchCaseResult & { job?: JobSnapshot }) => Promise<void>
-} = {}) {
+  sessionId: string; caseTimeoutMs?: number; signal?: AbortSignal; onCase?: (row: FabricBenchCaseResult & { job?: JobSnapshot }) => Promise<void>
+}) {
+  if (!options.sessionId) throw new CoreError('SESSION_REQUIRED', 'Live Bench must be bound to an explicit task session.')
   const suite = fabricBenchLiveSchema.parse(raw), cases: Array<FabricBenchCaseResult & { job?: JobSnapshot }> = []
   let interrupted = false
+  await waitBenchReady(runtime, instanceId, options.sessionId, 300000, options.signal)
   for (const row of suite.cases) {
     let jobId: string | undefined, error: unknown
     try {
       if (options.signal?.aborted) throw new CoreError('CANCELLED', 'Bench cancelled')
-      for (const command of row.prepare) await benchCommand(runtime, instanceId, command)
-      await requireBenchWorld(runtime, instanceId)
-      jobId = runtime.startTest(row.spec, instanceId).jobId
-      const job = await waitBenchJob(runtime, jobId, options.caseTimeoutMs ?? 30000, options.signal)
+      for (const command of row.prepare) await benchCommand(runtime, instanceId, options.sessionId, command)
+      await requireBenchWorld(runtime, instanceId, options.sessionId)
+      jobId = runtime.startTest(row.spec, instanceId, options.sessionId).jobId
+      const job = await waitBenchJob(runtime, jobId, options.sessionId, options.caseTimeoutMs ?? 30000, options.signal)
       if (!job.result?.acceptance) throw new CoreError(job.code || 'EVIDENCE_MISSING', job.error || 'Core report missing')
     } catch (failure) { error = failure }
-    const job = jobId ? runtime.jobStatus(jobId) : undefined
+    const job = jobId ? runtime.jobStatus(jobId, options.sessionId) : undefined
     const settled = job && 'status' in job ? job : undefined
     const coreReport = settled?.result?.acceptance ? acceptanceReportSchema.parse(settled.result.acceptance) : undefined
     const errorCode = error instanceof CoreError ? error.code : 'BENCH_FAILED'

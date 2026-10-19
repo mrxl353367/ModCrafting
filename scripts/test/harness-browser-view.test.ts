@@ -5,6 +5,7 @@ import { createServer, request as httpRequest } from 'node:http'
 import { mkdtemp, mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import os from 'node:os'
+import { fixtureObserver } from './fixtures/observer.ts'
 import { FabricRuntime, createRuntimePaths, FABRIC_TARGET, GAME_TEST_WORLD, validateGameTestSpec, type GameTestSpec, type JobSnapshot } from '../../packages/modcrafting-core/src/index.ts'
 import { startBrowserView } from '../../plugins/modcrafting-fabric/src/browser-server.ts'
 
@@ -13,7 +14,7 @@ async function fixture(t: { after: (work: () => Promise<void>) => void }) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'modcrafting-view-'))
   const project = path.join(root, 'project'); await mkdir(project)
   const children: Promise<void>[] = []
-  const runtime = new FabricRuntime({ paths: createRuntimePaths(path.join(root, 'data')), version: 'browser-fixture', toolchain: {
+  const runtime = new FabricRuntime({ paths: createRuntimePaths(path.join(root, 'data')), version: 'browser-fixture', observer: fixtureObserver, toolchain: {
     status: async () => ({ ok: true, platform: process.platform, node: process.version, java: { ok: true }, gradleWrapper: true, target: FABRIC_TARGET, remediation: [] }),
     startGradle: async (_, task, events) => {
       const child = spawn(process.execPath, ['-e', task === 'runClient' ? 'setInterval(()=>{},1000)' : "console.log('VIEW_FIXTURE_BUILD');setTimeout(()=>process.exit(0),300)"], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] })
@@ -22,17 +23,18 @@ async function fixture(t: { after: (work: () => Promise<void>) => void }) {
       return child
     }
   } })
+  const sessionId = runtime.createSession({ name: 'browser fixture', projectPath: project }).sessionId
   const view = await startBrowserView(runtime, assets)
   t.after(async () => { runtime.close(); await Promise.all(children); await view.close() })
   const url = new URL(view.url), token = new URLSearchParams(url.hash.slice(1)).get('token')!
-  const headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json' }
+  const headers = { authorization: `Bearer ${token}`, 'content-type': 'application/json', 'x-modcrafting-session': sessionId, 'x-modcrafting-backend': runtime.backendId }
   const call = async (body: unknown) => (await fetch(url.origin + '/api/action', { method: 'POST', headers, body: JSON.stringify(body) })).json()
   const state = async () => (await fetch(url.origin + '/api/state', { headers })).json()
-  return { root, project, runtime, url, headers, view, call, state }
+  return { root, project, runtime, sessionId, url, headers, view, call, state }
 }
-async function settled(runtime: FabricRuntime, id: string): Promise<JobSnapshot> {
+async function settled(runtime: FabricRuntime, id: string, sessionId: string): Promise<JobSnapshot> {
   const deadline = Date.now() + 5000
-  while (Date.now() < deadline) { const job = runtime.jobStatus(id); assert.ok('status' in job); if (job.result || job.error) return job; await new Promise((resolve) => setTimeout(resolve, 15)) }
+  while (Date.now() < deadline) { const job = runtime.jobStatus(id, sessionId); assert.ok('status' in job); if (job.result || job.error) return job; await new Promise((resolve) => setTimeout(resolve, 15)) }
   throw Error('Fixture job did not settle')
 }
 test('Browser view uses loopback, authenticates APIs and rejects cross-site/rebinding requests', async (t) => {
@@ -53,25 +55,49 @@ test('Browser view uses loopback, authenticates APIs and rejects cross-site/rebi
   assert.equal((await f.state()).jobs.length, 0)
 })
 test('Browser and Core share jobs in both directions; closing view leaves a running build intact', async (t) => {
-  const f = await fixture(t), first = f.runtime.startBuild(f.project)
+  const f = await fixture(t), first = f.runtime.startBuild(f.project, 'build', f.sessionId)
   assert.equal((await f.state()).jobs[0].id, first.jobId)
   assert.equal((await f.call({ operation: 'stop', jobId: first.jobId })).ok, true)
-  assert.equal((await settled(f.runtime, first.jobId)).status, 'stopped')
+  assert.equal((await settled(f.runtime, first.jobId, f.sessionId)).status, 'stopped')
   const second = await f.call({ operation: 'build', projectPath: f.project })
-  assert.equal(f.runtime.state().jobs.at(-1)?.id, second.jobId)
+  assert.equal(f.runtime.state(f.sessionId).jobs.at(-1)?.id, second.jobId)
   await f.view.close()
-  assert.equal((await settled(f.runtime, second.jobId)).status, 'completed')
-  assert.equal((f.runtime.jobStatus(second.jobId) as JobSnapshot).result?.exitCode, 0)
+  assert.equal((await settled(f.runtime, second.jobId, f.sessionId)).status, 'completed')
+  assert.equal((f.runtime.jobStatus(second.jobId, f.sessionId) as JobSnapshot).result?.exitCode, 0)
+})
+test('Task sessions keep builds and job controls separate even when they share one project', async (t) => {
+  const f = await fixture(t)
+  const other = f.runtime.createSession({ name: 'second task', projectPath: f.project })
+  const first = f.runtime.startBuild(f.project, 'build', f.sessionId)
+  const second = f.runtime.startBuild(f.project, 'build', other.sessionId)
+  assert.equal((await settled(f.runtime, first.jobId, f.sessionId)).status, 'completed')
+  assert.equal((await settled(f.runtime, second.jobId, other.sessionId)).status, 'completed')
+  assert.ok(f.runtime.state(f.sessionId).jobs.some((job) => job.id === first.jobId))
+  assert.ok(!f.runtime.state(f.sessionId).jobs.some((job) => job.id === second.jobId))
+  assert.equal((f.runtime.jobStatus(first.jobId, other.sessionId) as { code: string }).code, 'JOB_NOT_OWNED')
+  assert.throws(() => f.runtime.stopJob(first.jobId, other.sessionId), { code: 'JOB_NOT_OWNED' })
+  assert.ok(f.runtime.state(other.sessionId).jobs.some((job) => job.id === second.jobId))
+  f.runtime.endSession(other.sessionId)
+  assert.ok(f.runtime.state(other.sessionId).jobs.some((job) => job.id === second.jobId), 'ended sessions remain readable for history')
+  assert.equal((f.runtime.jobStatus(second.jobId, other.sessionId) as JobSnapshot).status, 'completed')
+  assert.throws(() => f.runtime.startBuild(f.project, 'build', other.sessionId), { code: 'SESSION_ENDED' })
+  const selected = await f.call({ operation: 'select_session', sessionId: other.sessionId })
+  assert.equal(selected.readOnly, true)
+  const archivedHeaders = { ...f.headers, 'x-modcrafting-session': other.sessionId }
+  const archivedState = await (await fetch(f.url.origin + '/api/state', { headers: archivedHeaders })).json()
+  assert.ok(archivedState.jobs.some((job: JobSnapshot) => job.id === second.jobId))
 })
 test('Browser exposes real Core verdicts/reports and bridge images; no arbitrary report/file read', async (t) => {
   const f = await fixture(t)
   await mkdir(path.join(f.runtime.paths.assetsRoot, 'base-mods'), { recursive: true })
   await writeFile(path.join(f.runtime.paths.assetsRoot, 'base-mods/modcrafting-observer.jar'), 'Fixture only')
-  const gameDir = path.join(f.root, 'game'), client = f.runtime.runClient(f.project, gameDir)
+  const client = f.runtime.runClient(f.project, undefined, f.sessionId)
+  const gameDir = client.gameDirectory
   let sequence = 0
   const observer = createServer((req, res) => {
     req.resume(); res.setHeader('content-type', 'application/json')
     res.end(JSON.stringify(req.url === '/v2/capabilities' ? { ok: true, protocolVersion: 2 }
+      : req.url === '/v2/test-preparation' ? { ok: true, phase: 'test_ready', ready: true, failed: false, screen: { simpleName: 'TitleScreen' } }
       : req.url === '/v1/screenshot' ? { ok: true, base64: 'aGVsbG8=', path: 'do-not-read-this-file' }
       : { ok: true, worldName: GAME_TEST_WORLD, requestId: `fixture_${++sequence}`, observedAt: Date.now(), player: { health: 20 } }))
   })
@@ -82,6 +108,7 @@ test('Browser exposes real Core verdicts/reports and bridge images; no arbitrary
   assert.equal((await f.call({ operation: 'runtime', instanceId })).bridgeReady, true)
   assert.equal((await f.call({ operation: 'snapshot', instanceId })).data.worldName, GAME_TEST_WORLD)
   assert.equal((await f.call({ operation: 'screenshot', instanceId })).image, 'data:image/png;base64,aGVsbG8=')
+  let successfulJobId = ''
   for (const [id, assertion, verdict] of [
     ['view-pass', { type: 'snapshot_value', source: 'player', pointer: '/health', equals: 20 }, 'PASS'],
     ['view-fail', { type: 'snapshot_value', source: 'player', pointer: '/health', equals: -1 }, 'FAIL'],
@@ -90,17 +117,25 @@ test('Browser exposes real Core verdicts/reports and bridge images; no arbitrary
     const spec: GameTestSpec = { version: 2, id, featureType: 'player_interaction', subject: {}, setup: [], actions: [{ type: 'wait', ms: 10 }], assertions: [assertion], cleanup: [] }
     assert.equal(validateGameTestSpec(spec).ok, true)
     const started = await f.call({ operation: 'test', instanceId, spec })
-    const job = await settled(f.runtime, started.jobId)
+    const job = await settled(f.runtime, started.jobId, f.sessionId)
     assert.equal(job.result?.verdict, verdict)
+    if (verdict === 'PASS') successfulJobId = started.jobId
     const report = await (await fetch(f.url.origin + '/api/report/' + started.jobId, { headers: f.headers })).json()
     assert.equal(report.verdict, verdict); assert.equal(report.instanceId, instanceId)
     assert.equal((await f.state()).jobs.find((value: JobSnapshot) => value.id === job.id).result.verdict, verdict)
     job.result!.reportPath = path.join(f.root, 'private.json'); await writeFile(job.result!.reportPath as string, '{}')
-    assert.equal((await (await fetch(f.url.origin + '/api/report/' + started.jobId, { headers: f.headers })).json()).code, 'REPORT_UNAVAILABLE')
+    const protectedReport = await (await fetch(f.url.origin + '/api/report/' + started.jobId, { headers: f.headers })).json()
+    assert.equal(protectedReport.verdict, verdict, 'mutating a returned job snapshot cannot redirect report reads')
   }
-  assert.equal((await f.call({ operation: 'test', instanceId, spec: {} })).code, 'INVALID_SPEC')
+  assert.equal((await f.call({ operation: 'test', instanceId, spec: {} })).code, 'INVALID_ARGUMENT')
   assert.equal((await f.call({ operation: 'stop', jobId: 'not-owned' })).code, 'JOB_NOT_FOUND')
-  await f.call({ operation: 'stop', jobId: client.jobId }); await settled(f.runtime, client.jobId)
+  await f.call({ operation: 'stop', jobId: client.jobId }); await settled(f.runtime, client.jobId, f.sessionId)
+  f.runtime.endSession(f.sessionId)
+  const archived = await (await fetch(f.url.origin + '/api/report/' + successfulJobId, { headers: f.headers })).json()
+  assert.equal(archived.verdict, 'PASS', `historical reports remain readable after a session ends: ${JSON.stringify(archived)}`)
+  assert.equal((await f.state()).sessionId, f.sessionId)
+  assert.equal((await f.state()).sessions.find((value: { sessionId: string }) => value.sessionId === f.sessionId).status, 'ended')
+  assert.equal((await f.call({ operation: 'build', projectPath: f.project, task: 'build' })).code, 'SESSION_ENDED')
 })
 
 

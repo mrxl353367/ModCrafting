@@ -122,7 +122,7 @@ public final class GameTestApi {
         out.put("requestId", "snap_" + System.nanoTime());
         out.put("observedAt", System.currentTimeMillis());
         out.put("worldTime", client.world.getTime());
-        out.put("worldName", client.getServer() == null ? null : client.getServer().getSaveProperties().getLevelName());
+        out.put("worldName", client.getServer() == null ? null : GamePreparation.isTestWorld(client.getServer()) ? "ModCrafting Test World" : client.getServer().getSaveProperties().getLevelName());
         out.put("player", GameQueries.player());
         out.put("serverPlayer", serverPlayerSnapshot(client));
         out.put("inventory", GameQueries.inventory());
@@ -189,8 +189,7 @@ public final class GameTestApi {
     public static Map<String, Object> playerState(Map<String, Object> body) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.player == null || client.getServer() == null) return error("NOT_IN_INTEGRATED_WORLD", "test world is not ready");
-        String worldName = client.getServer().getSaveProperties().getLevelName();
-        if (!"ModCrafting Test World".equals(worldName)) return error("WORLD_UNAVAILABLE", "player state control is restricted to ModCrafting Test World");
+        if (!GamePreparation.isTestWorld(client.getServer())) return error("WORLD_UNAVAILABLE", "player state control is restricted to the session-owned ModCrafting Test World");
         String action = String.valueOf(body == null ? "" : body.getOrDefault("action", ""));
         ServerPlayerEntity player = client.getServer().getPlayerManager().getPlayer(client.player.getUuid());
         if (player == null) return error("PLAYER_NOT_READY", "server player is not ready");

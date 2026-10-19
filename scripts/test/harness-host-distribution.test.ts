@@ -41,7 +41,7 @@ async function productFixture() {
     '.codex-plugin/plugin.json': JSON.stringify(identity),
     '.mcp.json': await readFile('plugins/modcrafting-fabric/.mcp.json', 'utf8'),
     'dist/mcp-server.js': `// fixture only ${JSON.stringify(identity.version)}`,
-    'assets/modcrafting.png': 'fixture icon', 'README.md': 'fixture readme', 'LICENSE': 'fixture license', 'THIRD_PARTY_NOTICES.txt': 'fixture notices',
+    'assets/modcrafting.png': 'fixture icon', 'README.md': 'fixture readme', 'LICENSE': 'fixture license', 'THIRD_PARTY_NOTICES.txt': 'fixture notices', 'compatibility.json': '{}',
     'skills/fabric-mod-development/SKILL.md': '---\nname: fabric-mod-development\n---\nfixture skill',
     'skills/fabric-game-validation/SKILL.md': '---\nname: fabric-game-validation\n---\nfixture skill'
   }

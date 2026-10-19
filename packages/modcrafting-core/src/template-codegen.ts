@@ -1,4 +1,4 @@
-// Pure legacy generators shared with the creator workbench; no Desktop runtime imports.
+// Pure Fabric source generators shared with the visual creator workbench.
 export interface ProjectCreateConfig { modId: string; groupId: string; javaPackage: string }
 const mainClassName = (name: string) => name.charAt(0).toUpperCase() + name.slice(1)
 

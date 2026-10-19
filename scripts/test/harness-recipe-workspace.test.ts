@@ -10,6 +10,7 @@ function fixture() {
   const root = mkdtempSync(path.resolve('temp/recipe-unit-')), project = path.join(root, 'project'), paths = createRuntimePaths(path.join(root, 'data'))
   ensureRuntimePaths(paths); mkdirSync(path.join(project, 'src/main/resources'), { recursive: true })
   writeFileSync(path.join(project, 'src/main/resources/fabric.mod.json'), JSON.stringify({ schemaVersion: 1, id: 'recipe_test', version: '1', depends: { minecraft: '1.21.4' } }))
+  writeFileSync(path.join(project, 'gradle.properties'), 'minecraft_version=1.21.4\n')
   writeFileSync(path.join(project, 'gradlew.bat'), '@echo fixture')
   mkdirSync(path.join(paths.knowledgeRoot, 'minecraft-data/1.21.4'), { recursive: true })
   writeFileSync(path.join(paths.knowledgeRoot, 'minecraft-data/1.21.4/index.json'), JSON.stringify({ itemsById: { 'minecraft:iron_ingot': { name: 'Iron Ingot', stackSize: 64 }, 'minecraft:gold_ingot': { name: 'Gold Ingot', stackSize: 64 }, 'minecraft:air': { name: 'Air', stackSize: 64 } } }))
@@ -63,7 +64,8 @@ test('Recipe writes reject traversals, linked paths, air, unknown items and exce
 test('Browser save and Core Agent read use the same versioned file; revision is mandatory', async t => {
   const f = fixture(), runtime = new FabricRuntime({ paths: f.paths, version: 'recipe-test' }), view = await startBrowserView(runtime, { html: '', js: '', css: '' })
   t.after(async () => { runtime.close(); await view.close() })
-  const url = new URL(view.url), headers = { authorization: 'Bearer ' + new URLSearchParams(url.hash.slice(1)).get('token'), 'content-type': 'application/json' }
+  const sessionId = runtime.createSession({ name: 'recipe browser fixture', projectPath: f.project }).sessionId
+  const url = new URL(view.url), headers = { authorization: 'Bearer ' + new URLSearchParams(url.hash.slice(1)).get('token'), 'content-type': 'application/json', 'x-modcrafting-session': sessionId, 'x-modcrafting-backend': runtime.backendId }
   const response = await fetch(url.origin + '/api/action', { method: 'POST', headers, body: JSON.stringify({ operation: 'recipe', request: { action: 'save', projectPath: f.project, recipeId: 'recipe_test:browser', expectedRevision: null, content: f.content } }) })
   const saved = await response.json() as { ok: boolean; document: RecipeDocument }; assert.ok(saved.ok)
   assert.deepEqual(f.call({ action: 'read', recipeId: 'recipe_test:browser' }).document, saved.document)

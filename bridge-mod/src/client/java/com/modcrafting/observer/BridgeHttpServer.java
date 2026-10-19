@@ -180,6 +180,7 @@ public final class BridgeHttpServer {
             }
             case "/v1/input-guard" -> InputGuard.snapshot();
             case "/v2/capabilities" -> GameTestApi.capabilities();
+            case "/v2/test-preparation" -> GamePreparation.status();
             default -> Map.of("ok", false, "code", "NOT_FOUND", "error", "未知路径: " + path);
         };
     }
@@ -191,6 +192,7 @@ public final class BridgeHttpServer {
             case "/v1/input" -> InputActions.handle(body);
             case "/v1/input-guard" -> InputGuard.apply(body);
             case "/v2/command" -> GameTestApi.command(string(body.get("command"), body.get("text")));
+            case "/v2/test-preparation" -> GamePreparation.begin(body);
             case "/v2/snapshot" -> GameTestApi.snapshot(body);
             case "/v2/player-state" -> GameTestApi.playerState(body);
             case "/v2/query" -> GameTestApi.query(body);

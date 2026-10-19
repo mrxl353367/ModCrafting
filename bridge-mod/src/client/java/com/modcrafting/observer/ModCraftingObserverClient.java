@@ -3,6 +3,7 @@ package com.modcrafting.observer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.UUID;
@@ -37,6 +38,7 @@ public class ModCraftingObserverClient implements ClientModInitializer {
                 LOGGER.error("Failed to start ModCrafting Observer bridge", e);
             }
         });
+        ClientTickEvents.END_CLIENT_TICK.register(GamePreparation::tick);
 
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             if (server != null) {

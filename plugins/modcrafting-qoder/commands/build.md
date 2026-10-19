@@ -1,6 +1,6 @@
 ---
-description: Validate and build a Fabric project, then report its final result.
-argument-hint: Absolute Fabric project path
+description: 打包当前模组并说明结果。
+argument-hint: 工程路径（可省略）
 ---
 
-For the Fabric 1.21.4 project in $ARGUMENTS, inspect the environment and run fabric_validate, then fabric_build_start with task build. If no path was supplied, ask for it. Poll fabric_job_status using the returned jobId until completion. Report the final status and useful errors; receiving a jobId is not success. Do not modify code, start Minecraft or publish artifacts.
+按 modcrafting-start 的沟通约定执行。优先使用 $ARGUMENTS 路径，否则使用当前工作目录。检查环境和 fabric_validate，再执行 fabric_build_start(task="build")，通过 fabric_job_status 等待真实结束；任务编号不等于成功。首次下载前说明网络和实际缓存位置，遵循用户授权与宿主策略。成功后用普通中文给出模组产物位置；失败时解释原因与下一步，详细日志按需提供。不自动修改代码、启动游戏或发布。

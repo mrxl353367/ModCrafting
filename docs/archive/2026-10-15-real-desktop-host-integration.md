@@ -28,4 +28,4 @@ Qoder 真实任务 ID：`2a24d364-cce7-4312-aa1f-e4a7c0c2a5c6`。本地记录为
 
 回退优先在宿主禁用新候选/连接器，保留数据；Codex 可重新启用旧 P1。完整配置备份只在确认没有后续用户改动时用于恢复，不能覆盖新增的其他设置。
 
-复用与官方依据见[真实桌面接入指南](../desktop-host-quickstart.md)。
+复用与官方依据见[真实桌面接入指南](https://github.com/newstarbar/ModCrafting/blob/main/docs/desktop-host-quickstart.md)。

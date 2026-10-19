@@ -7,8 +7,8 @@ import { validatePlugin, validateStageContents } from './validate.mjs'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const source = path.join(root, 'plugins/modcrafting-fabric')
 const destination = path.join(root, 'temp/plugin-artifacts/modcrafting-fabric')
-const entries = ['.codex-plugin/plugin.json', '.mcp.json', 'dist/mcp-server.js', 'assets/modcrafting.png', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.txt']
-// Only SKILL.md files are part of the current two skills; never copy caches or adjacent local files.
+const entries = ['.codex-plugin/plugin.json', '.mcp.json', 'dist/mcp-server.js', 'assets/modcrafting.png', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.txt', 'compatibility.json']
+// Copy only skill documents; never include caches or adjacent local files.
 for (const entry of await readdir(path.join(source, 'skills'), { withFileTypes: true })) {
   if (entry.isDirectory()) entries.push(`skills/${entry.name}/SKILL.md`)
 }

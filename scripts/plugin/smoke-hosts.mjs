@@ -38,19 +38,26 @@ for (const host of ['codex', 'claude', 'qoder']) {
   const row = { host, nativeHostTest: false }
   try {
     await client.connect(transport)
-    assert.equal((await client.listTools()).tools.length, 22); row.tools = 22
+    assert.equal((await client.listTools()).tools.length, 26); row.tools = 26
     const call = async (name, args = {}) => { const reply = await client.callTool({ name, arguments: args }); return reply.structuredContent || JSON.parse(reply.content.find((value) => value.type === 'text').text) }
     const environment = await call('modcrafting_environment_status')
     assert.equal(environment.paths.dataRoot, dataRoot); assert.ok(environment.browserUrl)
-    assert.ok(environment.assets.every((value) => value.status === 'missing'))
-    const url = new URL(environment.browserUrl), token = new URLSearchParams(url.hash.slice(1)).get('token')
-    const state = await (await fetch(url.origin + '/api/state', { headers: { authorization: `Bearer ${token}` } })).json()
-    assert.equal(state.contractVersion, 1); assert.deepEqual(state.jobs, [])
-    assert.equal((await fetch(url.origin)).status, 200)
+    assert.ok(environment.assets.filter(value => value.name !== 'base-mods').every((value) => value.status === 'missing'))
     const project = path.join(scope, host, 'project with spaces'); await mkdir(path.join(project, 'src/main/resources'), { recursive: true })
     await writeFile(path.join(project, 'src/main/resources/fabric.mod.json'), JSON.stringify({ id: 'host_smoke', version: '1.0.0', depends: { minecraft: '1.21.4' } }))
+    await writeFile(path.join(project, 'gradlew.bat'), '@echo off\r\nexit /b 99\r\n')
+    await writeFile(path.join(project, 'gradle.properties'), 'minecraft_version=1.21.4\n')
     assert.equal((await call('fabric_project_inspect', { projectPath: project })).project.modId, 'host_smoke')
     assert.equal((await call('fabric_project_inspect', { projectPath: path.join(scope, 'missing') })).code, 'PROJECT_UNAVAILABLE')
+    const session = await call('modcrafting_session', { action: 'create', name: `${host} config smoke`, projectPath: project })
+    const sessionId = session.session.sessionId
+    const workbench = await call('modcrafting_open_workbench', { sessionId, projectPath: project, open: false })
+    const url = new URL(workbench.browserUrl), fragment = new URLSearchParams(url.hash.slice(1)), token = fragment.get('token')
+    const headers = { authorization: `Bearer ${token}`, 'x-modcrafting-session': sessionId, 'x-modcrafting-backend': fragment.get('backendId') }
+    const state = await (await fetch(url.origin + '/api/state', { headers })).json()
+    assert.equal(state.contractVersion, 1); assert.equal(state.sessionId, sessionId); assert.deepEqual(state.jobs, [])
+    assert.equal((await fetch(url.origin)).status, 200)
+    await call('modcrafting_session', { action: 'end', sessionId })
     row.ok = true; row.browserFallback = true; row.isolatedModules = true
   } finally { await client.close() }
   results.push(row)

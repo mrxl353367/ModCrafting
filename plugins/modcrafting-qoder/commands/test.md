@@ -1,6 +1,6 @@
 ---
-description: Validate gameplay with Observer V2 and structured evidence.
-argument-hint: Absolute project path and expected behavior
+description: 在游戏中检查模组效果。
+argument-hint: 想检查的功能，可附工程路径
 ---
 
-Use fabric-game-validation for the project and expected behavior in $ARGUMENTS. Obtain missing project, behavior or independent game-directory details before starting. Check the build, resources and Observer V2 readiness. Run automatic scenarios only in ModCrafting Test World after verifying the active world. Include setup/actions/assertions/cleanup, poll to completion, and report raw PASS/FAIL/INCONCLUSIVE, cleanup and reportPath. Missing capabilities and screenshots alone never prove PASS. Do not use ordinary saves, rewrite the feature to fit a test, or publish artifacts.
+使用 fabric-game-validation 和 modcrafting-start，结合 $ARGUMENTS、当前工程和上文需求检查游戏效果；已有信息不要重复询问。先确认打包成功，再使用插件启动独立测试客户端并检查连接。配套组件由插件自动应用；版本不匹配时给出更新完整包并重启的处理方式，不探测旧接口或绕过宿主拒绝。自动测试仅允许 ModCrafting Test World，并包含准备、操作、结果检查和清理。等待结束，以“已通过 / 未通过 / 暂时无法验证”说明功能结果及具体原因；原始 verdict、清理和报告路径保留为详情。截图或发送命令成功不等于功能通过，不使用普通存档、不改功能迎合测试、不发布。

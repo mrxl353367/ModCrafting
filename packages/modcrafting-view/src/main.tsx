@@ -2,7 +2,7 @@ import React from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App.tsx'
 
-// Migrated the renderer boundary; recovery uses browser reload instead of window.api.
+// Keep browser rendering failures recoverable without relying on a desktop preload API.
 class ViewBoundary extends React.Component<React.PropsWithChildren, { error: Error | null }> {
   state = { error: null as Error | null }
   static getDerivedStateFromError(error: Error) { return { error } }

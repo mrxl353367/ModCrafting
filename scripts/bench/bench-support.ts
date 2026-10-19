@@ -3,24 +3,6 @@ import path from 'node:path'
 import { createHash } from 'node:crypto'
 import type { FabricBenchCaseResult } from '../../packages/modcrafting-core/src/fabric-bench.ts'
 
-export interface BenchWidget { message?: string; label?: string; active?: boolean; className?: string; type?: string; x: number; y: number; width: number }
-/** Save loading is asynchronous: observe an active Play button before invoking it. */
-export async function selectBenchWorld(
-  inspect: () => Promise<{ widgets: BenchWidget[] }>,
-  input: (action: string, args: Record<string, unknown>) => Promise<void>,
-  poll: <T>(work: () => Promise<T | undefined>, name: string) => Promise<T>
-) {
-  const play = await poll(async () => {
-    const widgets = (await inspect()).widgets
-    const button = widgets.find((row) => /进入.*世界/.test(row.message || row.label || ''))
-    if (button?.active === true) return button
-    const list = widgets.find((row) => String(row.className || row.type || '').includes('WorldList'))
-    if (list) await input('click_at', { x: list.x + list.width / 2, y: list.y + 18 })
-    return undefined
-  }, 'active dedicated-world selection')
-  await input('click_widget', { label: play.message || play.label! })
-}
-
 export const sha256 = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex')
 const excluded = new Set(['.git', '.gradle', 'build', 'run', 'node_modules'])
 const excludedName = (name: string) => excluded.has(name) || name === '.env' || name.startsWith('.env.')
@@ -33,7 +15,7 @@ export async function copyBenchInput(source: string, target: string, project = f
     return true
   } })
 }
-/** Every run gets new writable copies; existing sources and worlds remain read-only inputs. */
+/** Every run gets an isolated project copy; the product owns game setup and save copying. */
 export async function prepareBenchRun(project: string, runRoot: string, world?: string) {
   const source = await realpath(project)
   if (!(await lstat(source)).isDirectory()) throw Error('Project input must be a directory')
@@ -49,11 +31,9 @@ export async function prepareBenchRun(project: string, runRoot: string, world?: 
   if (inside(source, output) || world && inside(await realpath(world), output)) throw Error('Run root must be outside all input directories')
   await mkdir(output, { recursive: true })
   const directory = await mkdtemp(path.join(output, 'run-'))
-  const projectPath = path.join(directory, 'project'), gameDirectory = path.join(directory, 'game')
+  const projectPath = path.join(directory, 'project')
   await copyBenchInput(source, projectPath, true)
-  await mkdir(gameDirectory)
-  if (world) await copyBenchInput(world, path.join(gameDirectory, 'saves', 'ModCrafting Test World'))
-  return { directory, projectPath, gameDirectory }
+  return { directory, projectPath, worldInput: world ? await realpath(world) : undefined }
 }
 export async function hashTree(directory: string): Promise<Record<string, string>> {
   const hashes: Record<string, string> = {}

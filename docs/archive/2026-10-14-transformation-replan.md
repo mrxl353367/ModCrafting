@@ -12,7 +12,7 @@ Core/Bench/Stage/协议成果继续复用；Desktop diff 需按必要安全维�
 
 ## 文档变更与验证
 
-新增 [统一路线](../transformation-roadmap.md)，更新 AGENTS、产品/架构入口、集成边界与文档索引；原 P1/P2 任务和 P2 报告只增加历史身份与新路线链接。可选展示层按共同 Core 契约实现，首批交付一个入口，不同时建设三套业务系统。
+新增 [main 中的历史路线文档](https://github.com/newstarbar/ModCrafting/blob/main/docs/transformation-roadmap.md)，更新 AGENTS、产品/架构入口、集成边界与文档索引；原 P1/P2 任务和 P2 报告只增加历史身份与新路线链接。可选展示层按共同 Core 契约实现，首批交付一个入口，不同时建设三套业务系统。
 
 变更前文档、工作区清单及变更后验证位于 temp/transformation-replan/run-*。检查相对链接、AGENTS 行数、diff 空白、变更范围，以及原 main/9 个未跟踪文件哈希；未因纯文档改动重跑构建或游戏测试。最近一次 46/46、21/21、10/10 属于已有代码验收，不是本次重规划执行的结果。
 
@@ -24,7 +24,7 @@ Core/Bench/Stage/协议成果继续复用；Desktop diff 需按必要安全维�
 
 Node 22/24 独立回归各 45/45，兼容回归各 3/3；没有 Desktop/Electron、只安装 Zod 的独立副本同样通过 45/45 与离线 21/21。副本采用 pnpm 10.34.7 共享 Store，node_modules 独立。全仓 809/788/21 和 23 条类型错误与旧失败逐项一致，构建通过。
 
-已有 Core/MCP/Bench 执行源码、正式锁、Stage 和历史证据未改。本轮无真实游戏或模型请求。原 main 与 9 个未跟踪文件哈希不变，未暂存、提交或推送。证据在 temp/p2-01-verification/run-m7dqd8xe/；下一项为 P2-02，整个 P2 尚未完成。详见 [当前报告](../phase-02-core-report.md)。
+已有 Core/MCP/Bench 执行源码、正式锁、Stage 和历史证据未改。本轮无真实游戏或模型请求。原 main 与 9 个未跟踪文件哈希不变，未暂存、提交或推送。证据在 temp/p2-01-verification/run-m7dqd8xe/；下一项为 P2-02，整个 P2 尚未完成。详见 [当前报告](https://github.com/newstarbar/ModCrafting/blob/main/docs/phase-02-core-report.md)。
 
 ## P2-02 实施补充
 
@@ -32,7 +32,7 @@ Node 22/24 独立回归各 45/45，兼容回归各 3/3；没有 Desktop/Electron
 
 Node 22/24 独立测试与无 Desktop/Electron 的副本均 54/54，离线 21/21；Stage 和真实 SDK Smoke 通过。全仓 818/797/21，23 条旧类型错误逐项不变。冷资源成功/失败路径为受控网络与实际 tar 解包夹具，不是首次真实远端下载或游戏运行。
 
-更新开发 Stage，未升级实际账户插件；未动原 main、用户文件或旧 Desktop，未提交/推送。证据在 temp/p2-02-verification/run-je16ndg8/。下一项 P2-03 固化 live Bench；P2-04 再做独立交付和实机/资源验收，P3 可视化未开始。详见 [Core 契约](../core-contracts.md) 与 [当前报告](../phase-02-core-report.md)。
+更新开发 Stage，未升级实际账户插件；未动原 main、用户文件或旧 Desktop，未提交/推送。证据在 temp/p2-02-verification/run-je16ndg8/。下一项 P2-03 固化 live Bench；P2-04 再做独立交付和实机/资源验收，P3 可视化未开始。详见 [Core 契约](../core-contracts.md) 与 [当前报告](https://github.com/newstarbar/ModCrafting/blob/main/docs/phase-02-core-report.md)。
 
 ## P2-03 实施补充
 
@@ -40,7 +40,7 @@ Node 22/24 独立测试与无 Desktop/Electron 的副本均 54/54，离线 21/21
 
 无 Desktop/Electron、仅 Zod 的副本 Node 22/24 各 64/64；仓库外 fixture 各 21/21，最终 live Node 22 构建/Observer/专用世界 10/10 预期匹配，实际 5 PASS / 3 FAIL / 2 INCONCLUSIVE。12 作业收敛，来源工程/资源/世界的文件及目录不变，相关进程剩余 0。故意清理失败和菜单入口中间失败报告全部保留，不将期望 FAIL 改称 PASS。全仓 828/807/21，23 条类型错误与旧基线相同。
 
-新增 Bench/测试/离线 CI 构建和使用说明，未动 Desktop、既有 MCP 工具、正式锁、用户账户或原 main，未提交/推送/删除用户文件。证据在 temp/p2-03-verification/run-zw63hny1/ 与仓库外专用运行目录；完整说明见 [当前报告](../phase-02-core-report.md) 与 [Bench 指南](../fabric-bench.md)。P2-04 的首次真实资源准备/独立交接尚未完成，P3 可选展示尚未开始。
+新增 Bench/测试/离线 CI 构建和使用说明，未动 Desktop、既有 MCP 工具、正式锁、用户账户或原 main，未提交/推送/删除用户文件。证据在 temp/p2-03-verification/run-zw63hny1/ 与仓库外专用运行目录；完整说明见 [当前报告](https://github.com/newstarbar/ModCrafting/blob/main/docs/phase-02-core-report.md) 与 [Bench 指南](../fabric-bench.md)。P2-04 的首次真实资源准备/独立交接尚未完成，P3 可选展示尚未开始。
 
 ## P2-04 实施补充
 
@@ -50,7 +50,7 @@ Node 22/24 独立测试与无 Desktop/Electron 的副本均 54/54，离线 21/21
 
 Node 22/24 回归及无 Desktop/Electron 副本各 65/65，SDK Smoke 19 工具；fixture 各 21/21，MCP 实机 10/10（5 PASS / 3 FAIL / 2 INCONCLUSIVE），独立 live CLI 代表三态 3/3。17 作业收敛、服务退出 0、相关进程剩余 0；来源与用户原 main/文件保持。全仓 829/808/21 与 23 类型错误仍是旧基线。共享 pnpm Store、各目录独立 node_modules，无新增依赖。
 
-证据：temp/p2-04-verification/run-hiklip3w/ 与 D:/Temp/modcrafting-product-p2-04/run-e3tgkygx/；详见 [当前报告](../phase-02-core-report.md)、[交接](../product-handoff.md)。P2 本地验收完成，未提交/推送/发布，未升级账户插件；远端 CI、冷工具链、跨机器和完整 GUI 不宣称已验收。下一项 P3 可选展示，尚未开始。
+证据：temp/p2-04-verification/run-hiklip3w/ 与 D:/Temp/modcrafting-product-p2-04/run-e3tgkygx/；详见 [当前报告](https://github.com/newstarbar/ModCrafting/blob/main/docs/phase-02-core-report.md)、[交接](../product-handoff.md)。P2 本地验收完成，未提交/推送/发布，未升级账户插件；远端 CI、冷工具链、跨机器和完整 GUI 不宣称已验收。下一项 P3 可选展示，尚未开始。
 
 ## P3 浏览器首发补充
 
@@ -58,7 +58,7 @@ Node 22/24 回归及无 Desktop/Electron 副本各 65/65，SDK Smoke 19 工具�
 
 Node 22/24 定向与仓库外仅 Zod 回归各 68/68，SDK Smoke 19、fixture 21/21；类型检查通过，全仓 832/811/21 与 23 TS 错误保持旧基线。实机 UI 完成工程/环境、构建、游戏/快照/图片、三态场景和指定任务的报告下载；390px 布局不溢出。关闭全部页面后构建 exitCode 0、有效 MCP 场景仍为 PASS，页面停止游戏；六个任务终态、服务退出 0，三次运行 12 个相关 PID 剩余 0。两次验证驱动字段/时序失败和语法检查失败保留，未修改业务判定来掩盖它们。
 
-证据：temp/p3-verification/run-f7mpzmw0/ 与 D:/Temp/modcrafting-p3-1ucO27/evidence/，详见 [P3 报告](../phase-03-visualization-report.md) 与 [浏览器指南](../browser-view.md)。原 main/用户文件/正式锁保持，无提交/推送/发布或账户升级。Observer V1→随包 V2 手动应用仍必要，截图仅辅助；MCP Apps 与新游戏 HUD 未实现，跨宿主/远端 CI 留到 P4，不提前删除 Desktop。
+证据：temp/p3-verification/run-f7mpzmw0/ 与 D:/Temp/modcrafting-p3-1ucO27/evidence/，详见 [P3 报告](https://github.com/newstarbar/ModCrafting/blob/main/docs/phase-03-visualization-report.md) 与 [浏览器指南](../browser-view.md)。原 main/用户文件/正式锁保持，无提交/推送/发布或账户升级。Observer V1→随包 V2 手动应用仍必要，截图仅辅助；MCP Apps 与新游戏 HUD 未实现，跨宿主/远端 CI 留到 P4，不提前删除 Desktop。
 
 ## P4 跨 Agent 分发补充
 
@@ -68,4 +68,4 @@ Codex App 随附 CLI/App Server 0.162.0-alpha.17.2 与 Claude Code 2.1.206 各�
 
 三宿主隔离副本禁用后安装缓存/数据标记保持；Node 22/24 定向回归各 73/73、三配置 SDK Smoke 各 19 工具与浏览器备用通过，全仓 837/816/21 和 23 条旧 TS 错误不变。Core bundle SHA 与 P3 相同，无须重复游戏验收。中间 Claude 动态 MCP pending/会话 EOF/新文件拒绝覆盖的验证驱动失败保留；按真实生命周期定位，未修改业务判定。
 
-证据：temp/p4-verification/run-mfg17pmn/ 与 D:/Temp/modcrafting-p4-IjlblL/；见 [P4 报告](../phase-04-distribution-report.md)、[分发指南](../host-distribution.md) 和 verification.json。正式锁、原 main、用户未跟踪文件和真实账户保持；无提交/推送/发布/数据删除。MCP Apps、GUI 宿主安装、账户升级、远端 CI 和 Qoder 实际调用仍明确未验收。
+证据：temp/p4-verification/run-mfg17pmn/ 与 D:/Temp/modcrafting-p4-IjlblL/；见 [P4 报告](https://github.com/newstarbar/ModCrafting/blob/main/docs/phase-04-distribution-report.md)、[分发指南](../host-distribution.md) 和 verification.json。正式锁、原 main、用户未跟踪文件和真实账户保持；无提交/推送/发布/数据删除。MCP Apps、GUI 宿主安装、账户升级、远端 CI 和 Qoder 实际调用仍明确未验收。

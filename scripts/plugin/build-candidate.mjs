@@ -6,7 +6,7 @@ import { parseArgs } from 'node:util'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const { values } = parseArgs({ options: { offline: { type: 'boolean' }, help: { type: 'boolean' } } })
-if (values.help) { console.log('Usage: candidate:build [--offline]. Requires JAVA_HOME=JDK21 and optionally GRADLE_USER_HOME. Builds MCP/Bench/migration and Observer from this checkout, then stages the complete three-host distribution. No publish/install/account changes.'); process.exit(0) }
+if (values.help) { console.log('Usage: candidate:build [--offline]. Requires JAVA_HOME=JDK21 and optionally GRADLE_USER_HOME. Builds MCP/Bench and Observer from this checkout, then stages the complete three-host distribution. No publish/install/account changes.'); process.exit(0) }
 const javaHome = process.env.JAVA_HOME
 if (!javaHome || !path.isAbsolute(javaHome)) throw Error('Set absolute JAVA_HOME to a system JDK 21 before building a complete candidate')
 const java = path.join(javaHome, 'bin', process.platform === 'win32' ? 'java.exe' : 'java')
@@ -23,9 +23,7 @@ function run(label, command, args, cwd = root) {
 }
 const script = (label, file, args = []) => run(label, process.execPath, [path.join(root, file), ...args])
 const lastJson = (text) => JSON.parse(text.trim().split(/\r?\n/).filter((line) => line.startsWith('{')).at(-1))
-script('plugin-build', 'scripts/plugin/build.mjs'); script('plugin-stage', 'scripts/plugin/stage.mjs')
 const bench = lastJson(script('bench-build', 'scripts/bench/build.mjs')).outputDirectory
-script('migration-build', 'scripts/plugin/build-migration.mjs')
 if (process.platform !== 'win32') throw Error('Observer candidate build currently supports Windows x64 only')
 run('observer-build', 'cmd.exe', ['/d', '/s', '/c', '.\\gradlew.bat', 'build', '--no-daemon', ...(values.offline ? ['--offline'] : [])], path.join(root, 'bridge-mod'))
 const properties = readFileSync(path.join(root, 'bridge-mod/gradle.properties'), 'utf8')
@@ -33,6 +31,7 @@ const version = properties.match(/^mod_version=([\w.+-]+)$/m)?.[1], name = prope
 if (!version || !name) throw Error('Invalid Observer artifact identity')
 const observer = path.join(root, 'bridge-mod/build/libs', `${name}-${version}.jar`), sources = path.join(root, 'bridge-mod/build/libs', `${name}-${version}-sources.jar`)
 if (!existsSync(observer) || !existsSync(sources)) throw Error('Observer build did not produce runtime and source jars')
+script('plugin-build', 'scripts/plugin/build.mjs', ['--observer-jar', observer]); script('plugin-stage', 'scripts/plugin/stage.mjs')
 const product = lastJson(script('product-stage', 'scripts/plugin/stage-product.mjs', ['--bench-dir', bench, '--observer-jar', observer, '--observer-sources', sources])).directory
 const distribution = lastJson(script('host-stage', 'scripts/plugin/stage-hosts.mjs', ['--product-dir', product]))
 const result = { ok: true, directory, product, distribution: distribution.directory, coreBundleSha256: distribution.coreBundleSha256, offlineGradle: Boolean(values.offline), sourcePolicy: 'current checkout only; no historical temp artifacts', nativeHostAcceptance: false }

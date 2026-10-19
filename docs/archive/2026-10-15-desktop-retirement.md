@@ -24,4 +24,4 @@
 
 独立测试 Node 22/24 80/80，新路线构建和类型检查通过；旧全仓仍 21 失败、23 类型错误，与 P4 相同。仓库外迁移、MCP/浏览器读回、双尺寸截图和迁移工程真实 Gradle 离线构建通过，关闭页面后任务继续。最终分发 45 文件 SHA 校验，默认启动为 Node 浏览器服务，三宿主 SDK/config 验证不冒充原生账户验收。
 
-本轮未启动游戏、未迁移个人配置、未清理旧源码/数据、未提交或推送。原 main/9 项用户未跟踪文件保持；共享 pnpm Store，独立 node_modules，正式锁与 .npmrc 不变。已完成职责和默认入口退役，兼容源码物理剥离与 Qoder 调用保留独立边界。完整证据见 [P5 报告](../phase-05-retirement-report.md)。
+本轮未启动游戏、未迁移个人配置、未清理旧源码/数据、未提交或推送。原 main/9 项用户未跟踪文件保持；共享 pnpm Store，独立 node_modules，正式锁与 .npmrc 不变。已完成职责和默认入口退役，兼容源码物理剥离与 Qoder 调用保留独立边界。完整证据见 [P5 报告](https://github.com/newstarbar/ModCrafting/blob/main/docs/phase-05-retirement-report.md)。

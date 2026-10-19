@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { action } from './client.ts'
+import { action, currentSession } from './client.ts'
 import { ItemVisual, useVisuals } from './visuals.tsx'
 import { newRecipeDraft, recipeContentFromDraft, recipeDraftFromContent, type RecipeDraft } from '../../modcrafting-core/src/recipe-editor.ts'
 import { slotFromRef, applySlot, type SlotRef } from '../../modcrafting-core/src/recipe-grid.ts'
@@ -11,11 +11,13 @@ const mime = 'application/x-modcrafting-recipe-slot'
 type Request = RecipeRequest extends infer T ? T extends { projectPath: string } ? Omit<T, 'projectPath'> : never : never
 type Reply = { recipes?: RecipeDocument[]; document?: RecipeDocument; items?: RecipeItem[] }
 export function RecipeEditor({ projectPath, modId }: { projectPath: string; modId: string }) {
+  const storageKey = `modcrafting-draft:${currentSession()}:recipe:${projectPath}`
+  const [restored] = useState(() => { try { return JSON.parse(sessionStorage.getItem(storageKey) || 'null') as { document?: RecipeDocument; draft?: RecipeDraft; recipeId?: string; query?: string; target?: SlotRef } | null } catch { return null } })
   const [recipes, setRecipes] = useState<RecipeDocument[]>([]), [items, setItems] = useState<RecipeItem[]>([])
-  const [document, setDocument] = useState<RecipeDocument>(), [draft, setDraft] = useState<RecipeDraft>(newRecipeDraft)
-  const [recipeId, setRecipeId] = useState(modId + ':new_recipe'), [query, setQuery] = useState('')
-  const [target, setTarget] = useState<SlotRef>({ kind: 'grid', row: 0, col: 0 }), [message, setMessage] = useState(''), [error, setError] = useState('')
-  const [busy, setBusy] = useState(false), [dirty, setDirty] = useState(false), [preview, setPreview] = useState(false)
+  const [document, setDocument] = useState<RecipeDocument | undefined>(restored?.document), [draft, setDraft] = useState<RecipeDraft>(restored?.draft || newRecipeDraft)
+  const [recipeId, setRecipeId] = useState(restored?.recipeId || modId + ':new_recipe'), [query, setQuery] = useState(restored?.query || '')
+  const [target, setTarget] = useState<SlotRef>(restored?.target || { kind: 'grid', row: 0, col: 0 }), [message, setMessage] = useState(''), [error, setError] = useState('')
+  const [busy, setBusy] = useState(false), [dirty, setDirty] = useState(Boolean(restored?.draft)), [preview, setPreview] = useState(false)
   const request = (value: Request) => action<Reply>({ operation: 'recipe', request: { ...value, projectPath } as RecipeRequest })
   useEffect(() => {
     if (!dirty) return
@@ -26,9 +28,16 @@ export function RecipeEditor({ projectPath, modId }: { projectPath: string; modI
   async function run(work: () => Promise<void>) { setBusy(true); setError(''); try { await work() } catch (cause) { setError(String(cause)) } finally { setBusy(false) } }
   useEffect(() => {
     let active = true
-    void Promise.all([request({ action: 'list' }), request({ action: 'catalog' })]).then(([list, catalog]) => { if (active) { setRecipes(list.recipes || []); setItems(catalog.items || []) } }).catch(cause => { if (active) setError(String(cause)) })
+    void Promise.all([request({ action: 'list' }), request({ action: 'catalog' })]).then(([list, catalog]) => { if (active) {
+      const rows = list.recipes || []; setRecipes(rows); setItems(catalog.items || [])
+      if (restored?.document) {
+        const latest = rows.find(value => value.recipeId === restored.document!.recipeId)
+        if (!latest || latest.revision !== restored.document.revision) { setDocument(undefined); setDirty(false); sessionStorage.removeItem(storageKey); setError('草稿没有恢复：配方文件已在其他位置改变。请重新读取后再编辑。') }
+      }
+    } }).catch(cause => { if (active) setError(String(cause)) })
     return () => { active = false }
   }, [projectPath])
+  useEffect(() => { if (dirty) sessionStorage.setItem(storageKey, JSON.stringify({ document, draft, recipeId, query, target })); else sessionStorage.removeItem(storageKey) }, [dirty, document, draft, recipeId, query, target, storageKey])
   function change(value: RecipeDraft) { setDraft(value); setDirty(true); setPreview(false); setMessage('') }
   async function load(id: string) {
     if (dirty && !window.confirm('放弃尚未保存的配方草稿，重新读取工程文件？')) return

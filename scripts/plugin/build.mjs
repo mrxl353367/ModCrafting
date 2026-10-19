@@ -4,11 +4,30 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createHash } from 'node:crypto'
+import { parseArgs } from 'node:util'
+import unzipper from 'unzipper'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const plugin = path.join(root, 'plugins', 'modcrafting-fabric')
 const dist = path.join(plugin, 'dist')
 const manifest = JSON.parse(await readFile(path.join(plugin, '.codex-plugin/plugin.json'), 'utf8'))
+const { values } = parseArgs({ options: { 'observer-jar': { type: 'string' } } })
+let observer = null
+if (values['observer-jar']) {
+  const bytes = await readFile(path.resolve(values['observer-jar']))
+  // Reuse the product-stage compatibility check; do not infer compatibility from the filename.
+  const archive = await unzipper.Open.buffer(bytes)
+  const metadata = archive.files.find(file => file.path === 'fabric.mod.json')
+  if (!metadata) throw Error('Observer has no fabric.mod.json')
+  const mod = JSON.parse((await metadata.buffer()).toString('utf8'))
+  if (mod.id !== 'modcrafting_observer' || mod.custom?.modcrafting?.observerProtocol !== 2 || mod.depends?.minecraft !== '~1.21.4') throw Error('Observer must declare protocol 2 and Minecraft 1.21.4')
+  for (const route of ['/v2/capabilities', '/v2/snapshot', '/v2/command']) {
+    const classes = archive.files.filter(file => file.path.endsWith('.class'))
+    if (!(await Promise.all(classes.map(file => file.buffer()))).some(value => value.includes(Buffer.from(route)))) throw Error(`Observer is missing ${route}`)
+  }
+  observer = { jarBase64: bytes.toString('base64'), sha256: createHash('sha256').update(bytes).digest('hex'), version: mod.version, protocol: 2 }
+}
 const wrapper = { batch: (await readFile(path.join(root, 'bridge-mod/gradlew.bat'), 'utf8')).replace(/\r?\n/g, '\r\n'), properties: (await readFile(path.join(root, 'bridge-mod/gradle/wrapper/gradle-wrapper.properties'), 'utf8')).replace(/\r\n/g, '\n'), jarBase64: (await readFile(path.join(root, 'bridge-mod/gradle/wrapper/gradle-wrapper.jar'))).toString('base64') }
 await mkdir(dist, { recursive: true })
 // Embed the optional React view in the existing self-contained entry; Stage stays nine files.
@@ -29,7 +48,7 @@ const bundled = await build({
   target: 'node22',
   sourcemap: false,
   legalComments: 'eof',
-  define: { __PLUGIN_VERSION__: JSON.stringify(manifest.version), __WEB_ASSETS__: JSON.stringify(webAssets), __PROJECT_WRAPPER__: JSON.stringify(wrapper) },
+  define: { __PLUGIN_VERSION__: JSON.stringify(manifest.version), __WEB_ASSETS__: JSON.stringify(webAssets), __PROJECT_WRAPPER__: JSON.stringify(wrapper), __OBSERVER__: JSON.stringify(observer) },
   metafile: true,
   write: false
 })
@@ -37,6 +56,7 @@ for (const output of Object.values(bundled.metafile.outputs)) {
   if (output.imports.some((entry) => entry.external && !entry.path.startsWith('node:'))) throw new Error('Bundle has a non-builtin external dependency')
 }
 await writeFile(path.join(dist, 'mcp-server.js'), bundled.outputFiles[0].contents)
+await writeFile(path.join(plugin, 'compatibility.json'), JSON.stringify({ contractVersion: 1, version: manifest.version, minecraft: '1.21.4', observer: observer ? { version: observer.version, protocol: observer.protocol, sha256: observer.sha256 } : null, coreBundleSha256: createHash('sha256').update(bundled.outputFiles[0].contents).digest('hex') }, null, 2) + '\n')
 const licenses = new Map()
 for (const input of [...Object.keys(bundled.metafile.inputs), ...Object.keys(view.metafile.inputs)].filter((file) => file.replace(/\\/g, '/').includes('node_modules/'))) {
   let directory = path.dirname(path.resolve(root, input))
@@ -55,7 +75,8 @@ for (const input of [...Object.keys(bundled.metafile.inputs), ...Object.keys(vie
   }
 }
 licenses.set('Gradle Wrapper (Apache-2.0)', await readFile(path.join(root, 'bridge-mod/gradle/wrapper/LICENSE'), 'utf8'))
+if (observer) licenses.set('ModCrafting Observer (MIT)', await readFile(path.join(root, 'bridge-mod/LICENSE'), 'utf8'))
 await writeFile(path.join(plugin, 'THIRD_PARTY_NOTICES.txt'), [...licenses].map(([name, license]) => `${name}\n${license}`).join('\n\n'))
 await mkdir(path.join(plugin, 'assets'), { recursive: true })
-await copyFile(path.join(root, 'packaging', 'appIcon.png'), path.join(plugin, 'assets', 'modcrafting.png'))
+await copyFile(path.join(plugin, 'modcrafting.png'), path.join(plugin, 'assets', 'modcrafting.png'))
 console.log(`Built self-contained ModCrafting Fabric MCP: ${path.relative(root, path.join(dist, 'mcp-server.js'))}`)

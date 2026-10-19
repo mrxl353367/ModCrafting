@@ -1,4 +1,4 @@
-name: Plugin foundation
+name: ModCrafting Fabric Plugin
 
 on:
   pull_request:
@@ -8,7 +8,6 @@ on:
       - 'packages/modcrafting-view/**'
       - 'scripts/test/harness-browser-view.test.ts'
       - 'scripts/test/harness-host-distribution.test.ts'
-      - 'scripts/test/harness-desktop-migration.test.ts'
       - 'scripts/plugin/**'
       - 'scripts/acceptance/**'
       - 'examples/iron-ticket/**'
@@ -31,7 +30,6 @@ on:
       - 'packages/modcrafting-view/**'
       - 'scripts/test/harness-browser-view.test.ts'
       - 'scripts/test/harness-host-distribution.test.ts'
-      - 'scripts/test/harness-desktop-migration.test.ts'
       - 'scripts/plugin/**'
       - 'scripts/acceptance/**'
       - 'examples/iron-ticket/**'
@@ -64,8 +62,7 @@ jobs:
         with:
           node-version: '22'
           cache: pnpm
-      # Plugin uses JS/prebuilt esbuild only: do not download Electron or run native/Desktop installers.
-      - name: Install frozen dependencies without Desktop lifecycle scripts
+      - name: Install frozen build dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Build standalone MCP
         run: pnpm run plugin:build
@@ -85,8 +82,4 @@ jobs:
         run: pnpm run bench:fabric
       - name: Build portable Bench commands without running Minecraft
         run: pnpm run bench:build
-      - name: Build and inspect standalone migration command
-        run: |
-          pnpm run migration:build
-          node temp/migration-artifacts/migrate-desktop.mjs --help
       # No uploads, credentials, publish steps or real game acceptance in this workflow.
